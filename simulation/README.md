@@ -11,6 +11,44 @@ The simulation workflow:
 3. **Capture simulated traffic** with realistic delays, jitter, and packet loss
 4. **Analyze and compare** features between original and simulated traffic
 
+## Simulation Modes
+
+### 1. Simple Simulation (Mathematical Model)
+
+Uses mathematical models to simulate network effects without real StarryNet emulation.
+
+**Files:**
+- `run_simulation.py` - Main simulation script
+- `traffic_injector.py` - Traffic injection module
+- `traffic_capture.py` - Traffic capture module
+- `feature_analyzer.py` - Feature analysis module
+
+**Usage:**
+```bash
+# Run small test
+python simulation/run_simulation.py --mode small_test
+
+# Run full simulation
+python simulation/run_simulation.py --mode full
+```
+
+### 2. Complete StarryNet Simulation (Real Network Emulation)
+
+Uses StarryNet's real network emulation with Docker containers, tc netem, and BIRD routing.
+
+**Files:**
+- `run_starrynet_simulation.py` - Full StarryNet simulation
+- `simple_starrynet_simulation.py` - Simplified version using iperf3
+
+**Usage:**
+```bash
+# Run small test with full StarryNet
+python simulation/run_starrynet_simulation.py --mode small_test
+
+# Run simplified StarryNet simulation
+python simulation/simple_starrynet_simulation.py --mode small_test
+```
+
 ## Modules
 
 ### 1. Traffic Injector (`traffic_injector.py`)
@@ -37,12 +75,11 @@ Captures and records traffic from the simulation.
 
 **Key Features:**
 - Records packets with timing information
-- Applies network effects (delay, jitter, loss)
 - Exports traces in original dataset format
 
 **Usage:**
 ```python
-from simulation.traffic_capture import TrafficCapture, NetworkSimulator
+from simulation.traffic_capture import TrafficCapture
 
 capture = TrafficCapture('output/tor_satellite')
 capture.start_capture('node1')
@@ -75,47 +112,46 @@ comparison = analyzer.compare_features(fiber_features, sim_features)
 similarity_score = analyzer.calculate_similarity_score(comparison)
 ```
 
-## Running Simulations
+## Complete StarryNet Simulation
 
-### Quick Start
+### Prerequisites
 
-```bash
-# Run small test (10 traces)
-python simulation/run_simulation.py --mode small_test
+1. **Docker** must be installed on the remote server
+2. **StarryNet** must be configured in `config.json`
+3. **Remote server** must be accessible via SSH
 
-# Run full simulation
-python simulation/run_simulation.py --mode full
+### Configuration
 
-# Analyze existing results
-python simulation/run_simulation.py --mode analyze
-```
-
-### Command Line Options
-
-```bash
-python simulation/run_simulation.py \
-    --mode small_test|full|analyze \
-    --config config.json \
-    --max_files 100 \
-    --output_dir simulation_output \
-    --data_dir dataset
-```
-
-### Configuration File
-
-Create a JSON configuration file:
+Update `config.json` with your server information:
 
 ```json
 {
-    "output_dir": "simulation_output",
-    "data_dir": "dataset",
-    "base_delay": 0.05,
-    "jitter": 0.01,
-    "loss_rate": 0.01,
-    "bandwidth_mbps": 100,
-    "small_test_files": 10
+    "remote_machine_IP": "your_server_ip",
+    "remote_machine_username": "your_username",
+    "remote_machine_password": "your_password"
 }
 ```
+
+### Running Complete Simulation
+
+```bash
+# Small test (10 traces)
+python simulation/run_starrynet_simulation.py --mode small_test
+
+# Full simulation
+python simulation/run_starrynet_simulation.py --mode full --max_files 100
+
+# Simplified version using iperf3
+python simulation/simple_starrynet_simulation.py --mode small_test
+```
+
+### Simulation Process
+
+1. **Initialize StarryNet**: Creates constellation and calculates delays
+2. **Create Environment**: Sets up Docker containers and network links
+3. **Inject Traffic**: Sends fiber traffic through satellite network
+4. **Capture Traffic**: Records traffic at destination
+5. **Analyze Results**: Compares features with ground truth
 
 ## Output Structure
 
@@ -145,47 +181,39 @@ The simulation uses the following network parameters:
 
 These parameters can be adjusted via configuration file to match different satellite network conditions.
 
-## Integration with StarryNet
-
-To integrate with the full StarryNet simulation:
-
-1. **Configure StarryNet** in `config.json`
-2. **Run StarryNet simulation** to get network topology
-3. **Use this module** to inject and capture traffic
-4. **Analyze results** to compare with ground truth
-
 ## Example Workflow
+
+### Simple Simulation
 
 ```python
 from simulation.traffic_injector import TrafficInjector, load_fiber_traces
-from simulation.traffic_capture import TrafficCapture, NetworkSimulator
 from simulation.feature_analyzer import FeatureAnalyzer
 
 # 1. Load fiber traces
 fiber_files = load_fiber_traces('dataset/tor_fiber', max_files=10)
 
-# 2. Create network simulator
-network = NetworkSimulator(base_delay=0.05, jitter=0.01)
+# 2. Process each trace using StarryNet simulation
+# See simple_starrynet_simulation.py for complete implementation
 
-# 3. Process each trace
-for fiber_file in fiber_files:
-    injector = TrafficInjector(fiber_file)
-
-    # Create capture
-    capture = TrafficCapture('output/tor_satellite')
-    capture.start_capture('sim_node')
-
-    # Apply network effects
-    for packet in injector.packets:
-        network.apply_network_effects([packet], capture)
-
-    capture.stop_capture()
-    capture.export_trace(os.path.basename(fiber_file))
-
-# 4. Analyze results
+# 3. Analyze results
 analyzer = FeatureAnalyzer()
 similarity = quick_compare('dataset/tor_fiber', 'output/tor_satellite', 'output/comparison')
 print(f"Similarity score: {similarity:.4f}")
+```
+
+### Complete StarryNet Simulation
+
+```python
+from simulation.simple_starrynet_simulation import SimpleStarryNetSimulation
+
+# Create simulation
+sim = SimpleStarryNetSimulation('config.json')
+
+# Run simulation
+sim.run_small_test(max_files=10)
+
+# Cleanup
+sim.cleanup()
 ```
 
 ## References
@@ -193,3 +221,4 @@ print(f"Similarity score: {similarity:.4f}")
 - Original dataset: `dataset/tor_fiber/` and `dataset/tor_starlink/`
 - Analysis script: `dataset/analyze_traffic.py`
 - StarryNet configuration: `config.json`
+- StarryNet documentation: `README.md`

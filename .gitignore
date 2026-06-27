@@ -3,6 +3,7 @@
 
 dataset
 simulation_output
+.vscode
 
 # Object files
 *.o
