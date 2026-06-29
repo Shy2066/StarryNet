@@ -157,17 +157,17 @@ def sn_get_param(file_):
 
 
 def sn_init_remote_machine(host, username, password):
-    # transport = paramiko.Transport((host, 22))
+    # transport = paramiko.Transport((host, 37619))
     # transport.connect(username=username, password=password)
     remote_machine_ssh = paramiko.SSHClient()
     # remote_machine_ssh._transport = transport
     remote_machine_ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
     remote_machine_ssh.connect(hostname=host,
-                               port=22,
+                               port=37619,
                                username=username,
                                password=password)
-    transport = paramiko.Transport((host, 22))
+    transport = paramiko.Transport((host, 37619))
     transport.connect(username=username, password=password)
     return remote_machine_ssh, transport
     # transport.close()
