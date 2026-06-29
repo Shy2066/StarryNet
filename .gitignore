@@ -2,6 +2,7 @@
 *.d
 
 dataset
+simulation_output
 
 # Object files
 *.o
