@@ -1,3 +1,4 @@
+starlink-5-5-550-53-grid-LeastDelay
 # Prerequisites
 *.d
 
@@ -56,3 +57,7 @@ dkms.conf
 .DS_Store
 .idea
 __pycache__
+# Isolated smoke runs
+artifacts/
+.venv/
+.p0.lock

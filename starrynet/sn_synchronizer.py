@@ -14,9 +14,9 @@ class StarryNet():
                  configuration_file_path,
                  GS_lat_long,
                  hello_interval=10,
-                 AS=[]):
+                 AS=[], local=False, argv=None):
         # Initialize constellation information.
-        sn_args = sn_load_file(configuration_file_path, GS_lat_long)
+        sn_args = sn_load_file(configuration_file_path, GS_lat_long, argv)
         self.name = sn_args.cons_name
         self.satellite_altitude = sn_args.satellite_altitude
         self.inclination = sn_args.inclination
@@ -65,16 +65,23 @@ class StarryNet():
         self.container_id_list = []
         self.n_container = 0
         # Get ssh handler.
-        self.remote_ssh, self.transport = sn_init_remote_machine(
-            sn_args.remote_machine_IP, sn_args.remote_machine_username,
-            sn_args.remote_machine_password)
+        if local:
+            from starrynet.local import LocalExecutor, LocalFiles
+            self.remote_ssh = LocalExecutor(self.configuration_file_path)
+            self.transport = self.remote_ssh
+            self.remote_ftp = LocalFiles(self.configuration_file_path)
+        else:
+            self.remote_ssh, self.transport = sn_init_remote_machine(
+                sn_args.remote_machine_IP, sn_args.remote_machine_username,
+                sn_args.remote_machine_password)
         if self.remote_ssh is None:
             print('Remote SSH login failure.')
             return
         if self.transport is None:
             print('Remote transport login failure.')
             return
-        self.remote_ftp = sn_init_remote_ftp(self.transport)
+        if not local:
+            self.remote_ftp = sn_init_remote_ftp(self.transport)
         if self.remote_ftp is None:
             print('Remote ftp login failure.')
             return
@@ -95,6 +102,7 @@ class StarryNet():
         self.recovery_time = []
         self.route_src = []
         self.route_time = []
+        self.scheduled_callbacks = []
 
         # Initiate a working directory
         sn_thread = sn_init_directory_thread(self.file_path,
@@ -216,6 +224,14 @@ class StarryNet():
         self.perf_des.append(sat2_index)
         self.perf_time.append(time_index)
 
+    def schedule_callback(self, time_second, callback):
+        time_second = int(time_second)
+        if time_second < 2 or time_second >= self.duration:
+            raise ValueError('Scheduled callback must fall inside the emulation')
+        if not callable(callback):
+            raise TypeError('Scheduled callback must be callable')
+        self.scheduled_callbacks.append((time_second, callback))
+
     def start_emulation(self):
         # Start emulation in a new thread.
         sn_thread = sn_Emulation_Start_Thread(
@@ -228,9 +244,25 @@ class StarryNet():
             self.sr_time, self.damage_ratio, self.damage_time,
             self.damage_list, self.recovery_time, self.route_src,
             self.route_time, self.duration, self.utility_checking_time,
-            self.perf_src, self.perf_des, self.perf_time)
+            self.perf_src, self.perf_des, self.perf_time,
+            self.scheduled_callbacks)
+        self.emulation_thread = sn_thread
         sn_thread.start()
-        sn_thread.join()
+        scheduler_error = None
+        try:
+            sn_thread.join()
+        except BaseException as exc:
+            scheduler_error = exc
+        callback_errors = []
+        for callback_thread in sn_thread.callback_threads:
+            try:
+                callback_thread.join()
+            except BaseException as exc:
+                callback_errors.append(exc)
+        if scheduler_error is not None:
+            raise scheduler_error
+        if callback_errors:
+            raise callback_errors[0]
 
     def stop_emulation(self):
         # Stop emulation in a new thread.

@@ -1,0 +1,16 @@
+ARG TOR_BASE_IMAGE=constellation-p2-tor:0.4.9.11
+FROM ${TOR_BASE_IMAGE}
+
+COPY chutney-source.tar.gz /tmp/chutney-source.tar.gz
+COPY chutney-source.sha256 /etc/p2-chutney-source.sha256
+
+RUN mkdir -p /opt/chutney \
+    && tar -xzf /tmp/chutney-source.tar.gz --strip-components=1 \
+       -C /opt/chutney \
+    && test -x /opt/chutney/chutney \
+    && sha256sum -c /etc/p2-chutney-source.sha256 \
+    && rm /tmp/chutney-source.tar.gz
+
+COPY networks/p2-smoke /opt/chutney/networks/p2-smoke
+
+CMD ["sleep", "infinity"]

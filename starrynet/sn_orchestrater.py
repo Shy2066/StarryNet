@@ -3,6 +3,16 @@ import threading
 import sys
 from time import sleep
 import numpy
+import subprocess
+
+try:
+    from starrynet.sn_thread import CheckedThread, WORKER_ERRORS
+except ImportError:
+    from sn_thread import CheckedThread, WORKER_ERRORS
+
+def sn_checked_system(command):
+    subprocess.run(command, shell=True, executable='/bin/bash', check=True)
+
 """
 Used in the remote machine for link updating, initializing links, damaging and recovering links and other functionalities。
 author: Yangtao Deng (dengyt21@mails.tsinghua.edu.cn) and Zeqi Lai (zeqilai@tsinghua.edu.cn) 
@@ -41,19 +51,19 @@ def sn_ISL_establish(current_sat_id, current_orbit_id, container_id_list,
     address_16_23 = isl_idx >> 8
     address_8_15 = isl_idx & 0xff
     # Create internal network in docker.
-    os.system('docker network create ' + ISL_name + " --subnet 10." +
+    sn_checked_system('docker network create --label starrynet.owner=constellation-test ' + ISL_name + " --subnet 10." +
               str(address_16_23) + "." + str(address_8_15) + ".0/24")
-    print('[Create ISL:]' + 'docker network create ' + ISL_name +
+    print('[Create ISL:]' + 'docker network create --label starrynet.owner=constellation-test ' + ISL_name +
           " --subnet 10." + str(address_16_23) + "." + str(address_8_15) +
           ".0/24")
-    os.system('docker network connect ' + ISL_name + " " +
+    sn_checked_system('docker network connect ' + ISL_name + " " +
               str(container_id_list[current_orbit_id * sat_num +
                                     current_sat_id]) + " --ip 10." +
               str(address_16_23) + "." + str(address_8_15) + ".40")
     delay = matrix[current_orbit_id * sat_num +
                    current_sat_id][down_orbit_id * sat_num + down_sat_id]
     with os.popen(
-            "docker exec -it " +
+            "docker exec -i " +
             str(container_id_list[current_orbit_id * sat_num +
                                   current_sat_id]) +
             " ip addr | grep -B 2 10." + str(address_16_23) + "." +
@@ -61,24 +71,24 @@ def sn_ISL_establish(current_sat_id, current_orbit_id, container_id_list,
             ".40 | head -n 1 | awk -F: '{ print $2 }' | tr -d [:blank:]") as f:
         ifconfig_output = f.readline()
         target_interface = str(ifconfig_output).split("@")[0]
-        os.system("docker exec -d " +
+        sn_checked_system("docker exec -i " +
                   str(container_id_list[current_orbit_id * sat_num +
                                         current_sat_id]) +
                   " ip link set dev " + target_interface + " down")
-        os.system("docker exec -d " +
+        sn_checked_system("docker exec -i " +
                   str(container_id_list[current_orbit_id * sat_num +
                                         current_sat_id]) +
                   " ip link set dev " + target_interface + " name " + "B" +
                   str(current_orbit_id * sat_num + current_sat_id + 1) +
                   "-eth" + str(down_orbit_id * sat_num + down_sat_id + 1))
-        os.system("docker exec -d " +
+        sn_checked_system("docker exec -i " +
                   str(container_id_list[current_orbit_id * sat_num +
                                         current_sat_id]) +
                   " ip link set dev B" +
                   str(current_orbit_id * sat_num + current_sat_id + 1) +
                   "-eth" + str(down_orbit_id * sat_num + down_sat_id + 1) +
                   " up")
-        os.system("docker exec -d " +
+        sn_checked_system("docker exec -i " +
                   str(container_id_list[current_orbit_id * sat_num +
                                         current_sat_id]) +
                   " tc qdisc add dev B" +
@@ -88,34 +98,34 @@ def sn_ISL_establish(current_sat_id, current_orbit_id, container_id_list,
     print('[Add current node:]' + 'docker network connect ' + ISL_name + " " +
           str(container_id_list[current_orbit_id * sat_num + current_sat_id]) +
           " --ip 10." + str(address_16_23) + "." + str(address_8_15) + ".40")
-    os.system('docker network connect ' + ISL_name + " " +
+    sn_checked_system('docker network connect ' + ISL_name + " " +
               str(container_id_list[down_orbit_id * sat_num + down_sat_id]) +
               " --ip 10." + str(address_16_23) + "." + str(address_8_15) +
               ".10")
     with os.popen(
-            "docker exec -it " +
+            "docker exec -i " +
             str(container_id_list[down_orbit_id * sat_num + down_sat_id]) +
             " ip addr | grep -B 2 10." + str(address_16_23) + "." +
             str(address_8_15) +
             ".10 | head -n 1 | awk -F: '{ print $2 }' | tr -d [:blank:]") as f:
         ifconfig_output = f.readline()
         target_interface = str(ifconfig_output).split("@")[0]
-        os.system("docker exec -d " +
+        sn_checked_system("docker exec -i " +
                   str(container_id_list[down_orbit_id * sat_num +
                                         down_sat_id]) + " ip link set dev " +
                   target_interface + " down")
-        os.system("docker exec -d " +
+        sn_checked_system("docker exec -i " +
                   str(container_id_list[down_orbit_id * sat_num +
                                         down_sat_id]) + " ip link set dev " +
                   target_interface + " name " + "B" +
                   str(down_orbit_id * sat_num + down_sat_id + 1) + "-eth" +
                   str(current_orbit_id * sat_num + current_sat_id + 1))
-        os.system("docker exec -d " +
+        sn_checked_system("docker exec -i " +
                   str(container_id_list[down_orbit_id * sat_num +
                                         down_sat_id]) + " ip link set dev B" +
                   str(down_orbit_id * sat_num + down_sat_id + 1) + "-eth" +
                   str(current_orbit_id * sat_num + current_sat_id + 1) + " up")
-        os.system("docker exec -d " +
+        sn_checked_system("docker exec -i " +
                   str(container_id_list[down_orbit_id * sat_num +
                                         down_sat_id]) + " tc qdisc add dev B" +
                   str(down_orbit_id * sat_num + down_sat_id + 1) + "-eth" +
@@ -145,19 +155,19 @@ def sn_ISL_establish(current_sat_id, current_orbit_id, container_id_list,
     address_16_23 = isl_idx >> 8
     address_8_15 = isl_idx & 0xff
     # Create internal network in docker.
-    os.system('docker network create ' + ISL_name + " --subnet 10." +
+    sn_checked_system('docker network create --label starrynet.owner=constellation-test ' + ISL_name + " --subnet 10." +
               str(address_16_23) + "." + str(address_8_15) + ".0/24")
-    print('[Create ISL:]' + 'docker network create ' + ISL_name +
+    print('[Create ISL:]' + 'docker network create --label starrynet.owner=constellation-test ' + ISL_name +
           " --subnet 10." + str(address_16_23) + "." + str(address_8_15) +
           ".0/24")
-    os.system('docker network connect ' + ISL_name + " " +
+    sn_checked_system('docker network connect ' + ISL_name + " " +
               str(container_id_list[current_orbit_id * sat_num +
                                     current_sat_id]) + " --ip 10." +
               str(address_16_23) + "." + str(address_8_15) + ".30")
     delay = matrix[current_orbit_id * sat_num +
                    current_sat_id][right_orbit_id * sat_num + right_sat_id]
     with os.popen(
-            "docker exec -it " +
+            "docker exec -i " +
             str(container_id_list[current_orbit_id * sat_num +
                                   current_sat_id]) +
             " ip addr | grep -B 2 10." + str(address_16_23) + "." +
@@ -165,24 +175,24 @@ def sn_ISL_establish(current_sat_id, current_orbit_id, container_id_list,
             ".30 | head -n 1 | awk -F: '{ print $2 }' | tr -d [:blank:]") as f:
         ifconfig_output = f.readline()
         target_interface = str(ifconfig_output).split("@")[0]
-        os.system("docker exec -d " +
+        sn_checked_system("docker exec -i " +
                   str(container_id_list[current_orbit_id * sat_num +
                                         current_sat_id]) +
                   " ip link set dev " + target_interface + " down")
-        os.system("docker exec -d " +
+        sn_checked_system("docker exec -i " +
                   str(container_id_list[current_orbit_id * sat_num +
                                         current_sat_id]) +
                   " ip link set dev " + target_interface + " name " + "B" +
                   str(current_orbit_id * sat_num + current_sat_id + 1) +
                   "-eth" + str(right_orbit_id * sat_num + right_sat_id + 1))
-        os.system("docker exec -d " +
+        sn_checked_system("docker exec -i " +
                   str(container_id_list[current_orbit_id * sat_num +
                                         current_sat_id]) +
                   " ip link set dev B" +
                   str(current_orbit_id * sat_num + current_sat_id + 1) +
                   "-eth" + str(right_orbit_id * sat_num + right_sat_id + 1) +
                   " up")
-        os.system("docker exec -d " +
+        sn_checked_system("docker exec -i " +
                   str(container_id_list[current_orbit_id * sat_num +
                                         current_sat_id]) +
                   " tc qdisc add dev B" +
@@ -192,35 +202,35 @@ def sn_ISL_establish(current_sat_id, current_orbit_id, container_id_list,
     print('[Add current node:]' + 'docker network connect ' + ISL_name + " " +
           str(container_id_list[current_orbit_id * sat_num + current_sat_id]) +
           " --ip 10." + str(address_16_23) + "." + str(address_8_15) + ".30")
-    os.system('docker network connect ' + ISL_name + " " +
+    sn_checked_system('docker network connect ' + ISL_name + " " +
               str(container_id_list[right_orbit_id * sat_num + right_sat_id]) +
               " --ip 10." + str(address_16_23) + "." + str(address_8_15) +
               ".20")
 
     with os.popen(
-            "docker exec -it " +
+            "docker exec -i " +
             str(container_id_list[right_orbit_id * sat_num + right_sat_id]) +
             " ip addr | grep -B 2 10." + str(address_16_23) + "." +
             str(address_8_15) +
             ".20 | head -n 1 | awk -F: '{ print $2 }' | tr -d [:blank:]") as f:
         ifconfig_output = f.readline()
         target_interface = str(ifconfig_output).split("@")[0]
-        os.system("docker exec -d " +
+        sn_checked_system("docker exec -i " +
                   str(container_id_list[right_orbit_id * sat_num +
                                         right_sat_id]) + " ip link set dev " +
                   target_interface + " down")
-        os.system("docker exec -d " +
+        sn_checked_system("docker exec -i " +
                   str(container_id_list[right_orbit_id * sat_num +
                                         right_sat_id]) + " ip link set dev " +
                   target_interface + " name " + "B" +
                   str(right_orbit_id * sat_num + right_sat_id + 1) + "-eth" +
                   str(current_orbit_id * sat_num + current_sat_id + 1))
-        os.system("docker exec -d " +
+        sn_checked_system("docker exec -i " +
                   str(container_id_list[right_orbit_id * sat_num +
                                         right_sat_id]) + " ip link set dev B" +
                   str(right_orbit_id * sat_num + right_sat_id + 1) + "-eth" +
                   str(current_orbit_id * sat_num + current_sat_id + 1) + " up")
-        os.system("docker exec -d " +
+        sn_checked_system("docker exec -i " +
                   str(container_id_list[right_orbit_id * sat_num +
                                         right_sat_id]) +
                   " tc qdisc add dev B" +
@@ -242,7 +252,7 @@ def sn_establish_ISLs(container_id_list, matrix, orbit_num, sat_num,
     ISL_threads = []
     for current_orbit_id in range(0, orbit_num):
         for current_sat_id in range(0, sat_num):
-            ISL_thread = threading.Thread(
+            ISL_thread = CheckedThread(
                 target=sn_ISL_establish,
                 args=(current_sat_id, current_orbit_id, container_id_list,
                       orbit_num, sat_num, constellation_size, matrix, bw,
@@ -265,16 +275,15 @@ def sn_get_param(file_):
 
 
 def sn_get_container_info():
-    #  Read all container information in all_container_info
-    with os.popen("docker ps") as f:
-        all_container_info = f.readlines()
-        n_container = len(all_container_info) - 1
-
-    container_id_list = []
-    for container_idx in range(1, n_container + 1):
-        container_id_list.append(all_container_info[container_idx].split()[0])
-
-    return container_id_list
+    import subprocess
+    rows = subprocess.check_output([
+        'docker', 'ps', '--filter',
+        'label=com.docker.swarm.service.name=constellation-test',
+        '--format', '{{.ID}} {{.Names}}'], universal_newlines=True).splitlines()
+    def index(row):
+        name = row.split()[1]
+        return int(name.rsplit('_', 1)[1]) if name.startswith('ovs_container_') else int(name.split('.')[1])
+    return [row.split()[0] for row in sorted(rows, key=index)]
 
 
 def sn_establish_GSL(container_id_list, matrix, GS_num, constellation_size, bw,
@@ -292,57 +301,57 @@ def sn_establish_GSL(container_id_list, matrix, GS_num, constellation_size, bw,
             address_8_15 = i & 0xff
             GSL_name = "GSL_" + str(i) + "-" + str(j)
             # Create internal network in docker.
-            os.system('docker network create ' + GSL_name + " --subnet 9." +
+            sn_checked_system('docker network create --label starrynet.owner=constellation-test ' + GSL_name + " --subnet 9." +
                       str(address_16_23) + "." + str(address_8_15) + ".0/24")
-            print('[Create GSL:]' + 'docker network create ' + GSL_name +
+            print('[Create GSL:]' + 'docker network create --label starrynet.owner=constellation-test ' + GSL_name +
                   " --subnet 9." + str(address_16_23) + "." +
                   str(address_8_15) + ".0/24")
-            os.system('docker network connect ' + GSL_name + " " +
+            sn_checked_system('docker network connect ' + GSL_name + " " +
                       str(container_id_list[i - 1]) + " --ip 9." +
                       str(address_16_23) + "." + str(address_8_15) + ".50")
             with os.popen(
-                    "docker exec -it " + str(container_id_list[i - 1]) +
+                    "docker exec -i " + str(container_id_list[i - 1]) +
                     " ip addr | grep -B 2 9." + str(address_16_23) + "." +
                     str(address_8_15) +
                     ".50 | head -n 1 | awk -F: '{ print $2 }' | tr -d [:blank:]"
             ) as f:
                 ifconfig_output = f.readline()
                 target_interface = str(ifconfig_output).split("@")[0]
-                os.system("docker exec -d " + str(container_id_list[i - 1]) +
+                sn_checked_system("docker exec -i " + str(container_id_list[i - 1]) +
                           " ip link set dev " + target_interface + " down")
-                os.system("docker exec -d " + str(container_id_list[i - 1]) +
+                sn_checked_system("docker exec -i " + str(container_id_list[i - 1]) +
                           " ip link set dev " + target_interface + " name " +
                           "B" + str(i - 1 + 1) + "-eth" + str(j))
-                os.system("docker exec -d " + str(container_id_list[i - 1]) +
+                sn_checked_system("docker exec -i " + str(container_id_list[i - 1]) +
                           " ip link set dev B" + str(i - 1 + 1) + "-eth" +
                           str(j) + " up")
-                os.system("docker exec -d " + str(container_id_list[i - 1]) +
+                sn_checked_system("docker exec -i " + str(container_id_list[i - 1]) +
                           " tc qdisc add dev B" + str(i - 1 + 1) + "-eth" +
                           str(j) + " root netem delay " + str(delay) + "ms loss " + str(loss) + "% rate " + str(bw) + "Gbit")
             print('[Add current node:]' + 'docker network connect ' +
                   GSL_name + " " + str(container_id_list[i - 1]) + " --ip 9." +
                   str(address_16_23) + "." + str(address_8_15) + ".50")
 
-            os.system('docker network connect ' + GSL_name + " " +
+            sn_checked_system('docker network connect ' + GSL_name + " " +
                       str(container_id_list[j - 1]) + " --ip 9." +
                       str(address_16_23) + "." + str(address_8_15) + ".60")
             with os.popen(
-                    "docker exec -it " + str(container_id_list[j - 1]) +
+                    "docker exec -i " + str(container_id_list[j - 1]) +
                     " ip addr | grep -B 2 9." + str(address_16_23) + "." +
                     str(address_8_15) +
                     ".60 | head -n 1 | awk -F: '{ print $2 }' | tr -d [:blank:]"
             ) as f:
                 ifconfig_output = f.readline()
                 target_interface = str(ifconfig_output).split("@")[0]
-                os.system("docker exec -d " + str(container_id_list[j - 1]) +
+                sn_checked_system("docker exec -i " + str(container_id_list[j - 1]) +
                           " ip link set dev " + target_interface + " down")
-                os.system("docker exec -d " + str(container_id_list[j - 1]) +
+                sn_checked_system("docker exec -i " + str(container_id_list[j - 1]) +
                           " ip link set dev " + target_interface + " name " +
                           "B" + str(j) + "-eth" + str(i - 1 + 1))
-                os.system("docker exec -d " + str(container_id_list[j - 1]) +
+                sn_checked_system("docker exec -i " + str(container_id_list[j - 1]) +
                           " ip link set dev B" + str(j) + "-eth" +
                           str(i - 1 + 1) + " up")
-                os.system("docker exec -d " + str(container_id_list[j - 1]) +
+                sn_checked_system("docker exec -i " + str(container_id_list[j - 1]) +
                           " tc qdisc add dev B" + str(j) + "-eth" +
                           str(i - 1 + 1) + " root netem delay " + str(delay) +
                           "ms loss " + str(loss) + "% rate " + str(bw) +
@@ -353,26 +362,26 @@ def sn_establish_GSL(container_id_list, matrix, GS_num, constellation_size, bw,
     for j in range(constellation_size + 1, constellation_size + GS_num + 1):
         GS_name = "GS_" + str(j)
         # Create default network and interface for GS.
-        os.system('docker network create ' + GS_name + " --subnet 9." +
+        sn_checked_system('docker network create --label starrynet.owner=constellation-test ' + GS_name + " --subnet 9." +
                   str(j) + "." + str(j) + ".0/24")
-        print('[Create GS network:]' + 'docker network create ' + GS_name +
+        print('[Create GS network:]' + 'docker network create --label starrynet.owner=constellation-test ' + GS_name +
               " --subnet 9." + str(j) + "." + str(j) + ".10/24")
-        os.system('docker network connect ' + GS_name + " " +
+        sn_checked_system('docker network connect ' + GS_name + " " +
                   str(container_id_list[j - 1]) + " --ip 9." + str(j) + "." +
                   str(j) + ".10")
         with os.popen(
-                "docker exec -it " + str(container_id_list[j - 1]) +
+                "docker exec -i " + str(container_id_list[j - 1]) +
                 " ip addr | grep -B 2 9." + str(j) + "." + str(j) +
                 ".10 | head -n 1 | awk -F: '{ print $2 }' | tr -d [:blank:]"
         ) as f:
             ifconfig_output = f.readline()
             target_interface = str(ifconfig_output).split("@")[0]
-            os.system("docker exec -d " + str(container_id_list[j - 1]) +
+            sn_checked_system("docker exec -i " + str(container_id_list[j - 1]) +
                       " ip link set dev " + target_interface + " down")
-            os.system("docker exec -d " + str(container_id_list[j - 1]) +
+            sn_checked_system("docker exec -i " + str(container_id_list[j - 1]) +
                       " ip link set dev " + target_interface + " name " + "B" +
                       str(j - 1 + 1) + "-default")
-            os.system("docker exec -d " + str(container_id_list[j - 1]) +
+            sn_checked_system("docker exec -i " + str(container_id_list[j - 1]) +
                       " ip link set dev B" + str(j - 1 + 1) + "-default" +
                       " up")
         print('[Add current node:]' + 'docker network connect ' + GS_name +
@@ -381,11 +390,11 @@ def sn_establish_GSL(container_id_list, matrix, GS_num, constellation_size, bw,
 
 
 def sn_copy_run_conf(container_idx, Path, current, total):
-    os.system("docker cp " + Path + "/B" + str(current + 1) + ".conf " +
+    sn_checked_system("docker cp " + Path + "/B" + str(current + 1) + ".conf " +
               str(container_idx) + ":/B" + str(current + 1) + ".conf")
     print("[" + str(current + 1) + "/" + str(total) + "]" +
           " docker cp bird.conf " + str(container_idx) + ":/bird.conf")
-    os.system("docker exec -it " + str(container_idx) + " bird -c B" +
+    sn_checked_system("docker exec -i " + str(container_idx) + " bird -c B" +
               str(current + 1) + ".conf")
     print("[" + str(current + 1) + "/" + str(total) +
           "] Bird routing process for container: " + str(container_idx) +
@@ -400,7 +409,7 @@ def sn_copy_run_conf_to_each_container(container_id_list, sat_node_number,
     total = len(container_id_list)
     copy_threads = []
     for current in range(0, total):
-        copy_thread = threading.Thread(
+        copy_thread = CheckedThread(
             target=sn_copy_run_conf,
             args=(container_id_list[current], path + "/conf/bird-" +
                   str(sat_node_number) + "-" + str(fac_node_number), current,
@@ -417,15 +426,15 @@ def sn_copy_run_conf_to_each_container(container_id_list, sat_node_number,
 
 def sn_damage_link(sat_index, container_id_list):
     with os.popen(
-            "docker exec -it " + str(container_id_list[sat_index]) +
+            "docker exec -i " + str(container_id_list[sat_index]) +
             " ifconfig | sed 's/[ \t].*//;/^\(eth0\|\)\(lo\|\)$/d'") as f:
         ifconfig_output = f.readlines()
         for intreface in range(0, len(ifconfig_output), 2):
-            os.system("docker exec -d " + str(container_id_list[sat_index]) +
+            sn_checked_system("docker exec -i " + str(container_id_list[sat_index]) +
                       " tc qdisc change dev " +
                       ifconfig_output[intreface][:-1] +
                       " root netem loss 100%")
-            print("docker exec -d " + str(container_id_list[sat_index]) +
+            print("docker exec -i " + str(container_id_list[sat_index]) +
                   " tc qdisc change dev " + ifconfig_output[intreface][:-1] +
                   " root netem loss 100%")
 
@@ -433,7 +442,7 @@ def sn_damage_link(sat_index, container_id_list):
 def sn_damage(random_list, container_id_list):
     damage_threads = []
     for random_satellite in random_list:
-        damage_thread = threading.Thread(target=sn_damage_link,
+        damage_thread = CheckedThread(target=sn_damage_link,
                                          args=(int(random_satellite),
                                                container_id_list))
         damage_threads.append(damage_thread)
@@ -449,47 +458,44 @@ def sn_recover_link(
     sat_loss,
 ):
     with os.popen(
-            "docker exec -it " + str(container_id_list[damaged_satellite]) +
+            "docker exec -i " + str(container_id_list[damaged_satellite]) +
             " ifconfig | sed 's/[ \t].*//;/^\(eth0\|\)\(lo\|\)$/d'") as f:
         ifconfig_output = f.readlines()
         for i in range(0, len(ifconfig_output), 2):
-            os.system("docker exec -d " +
+            sn_checked_system("docker exec -i " +
                       str(container_id_list[damaged_satellite]) +
                       " tc qdisc change dev " + ifconfig_output[i][:-1] +
                       " root netem loss " + str(sat_loss) + "%")
-            print("docker exec -d " +
+            print("docker exec -i " +
                   str(container_id_list[damaged_satellite]) +
                   " tc qdisc change dev " + ifconfig_output[i][:-1] +
                   " root netem loss " + str(sat_loss) + "%")
 
 
 def sn_del_network(network_name):
-    os.system('docker network rm ' + network_name)
+    sn_checked_system('docker network rm ' + network_name)
 
 
 def sn_stop_emulation():
-    os.system("docker service rm constellation-test")
-    with os.popen("docker rm -f $(docker ps -a -q)") as f:
-        f.readlines()
-    with os.popen("docker network ls") as f:
-        all_br_info = f.readlines()
-        del_threads = []
-        for line in all_br_info:
-            if "La" in line or "Le" or "GS" in line:
-                network_name = line.split()[1]
-                del_thread = threading.Thread(target=sn_del_network,
-                                              args=(network_name, ))
-                del_threads.append(del_thread)
-        for del_thread in del_threads:
-            del_thread.start()
-        for del_thread in del_threads:
-            del_thread.join()
+    import subprocess
+    services = subprocess.check_output(['docker', 'service', 'ls', '--format', '{{.Name}}'], universal_newlines=True).splitlines()
+    if 'constellation-test' in services:
+        subprocess.run(['docker', 'service', 'rm', 'constellation-test'], check=True)
+        sleep(3)
+    ids = subprocess.check_output(['docker', 'ps', '-aq', '--filter',
+        'label=com.docker.swarm.service.name=constellation-test'], universal_newlines=True).split()
+    if ids:
+        subprocess.run(['docker', 'rm', '-f', *ids], check=True)
+    networks = subprocess.check_output(['docker', 'network', 'ls', '--filter',
+        'label=starrynet.owner=constellation-test', '--format', '{{.ID}}'], universal_newlines=True).split()
+    for network in networks:
+        subprocess.run(['docker', 'network', 'rm', network], check=True)
 
 
 def sn_recover(damage_list, container_id_list, sat_loss):
     recover_threads = []
     for damaged_satellite in damage_list:
-        recover_thread = threading.Thread(target=sn_recover_link,
+        recover_thread = CheckedThread(target=sn_recover_link,
                                           args=(int(damaged_satellite),
                                                 container_id_list, sat_loss))
         recover_threads.append(recover_thread)
@@ -506,13 +512,13 @@ def sn_update_delay(matrix, container_id_list,
         for col in range(row, len(matrix[row])):
             if float(matrix[row][col]) > 0:
                 if row < col:
-                    delay_thread = threading.Thread(
+                    delay_thread = CheckedThread(
                         target=sn_delay_change,
                         args=(row, col, matrix[row][col], container_id_list,
                               constellation_size))
                     delay_threads.append(delay_thread)
                 else:
-                    delay_thread = threading.Thread(
+                    delay_thread = CheckedThread(
                         target=sn_delay_change,
                         args=(col, row, matrix[col][row], container_id_list,
                               constellation_size))
@@ -526,20 +532,21 @@ def sn_update_delay(matrix, container_id_list,
 
 def sn_delay_change(link_x, link_y, delay, container_id_list,
                     constellation_size):  # multi-thread updating delays
-    if link_y <= constellation_size:
-        os.system("docker exec -d " + str(container_id_list[link_x]) +
-                  " tc qdisc change dev B" + str(link_x + 1) + "-eth" +
-                  str(link_y + 1) + " root netem delay " + str(delay) + "ms")
-        os.system("docker exec -d " + str(container_id_list[link_y]) +
-                  " tc qdisc change dev B" + str(link_y + 1) + "-eth" +
-                  str(link_x + 1) + " root netem delay " + str(delay) + "ms")
-    else:
-        os.system("docker exec -d " + str(container_id_list[link_x]) +
-                  " tc qdisc change dev B" + str(link_x + 1) + "-eth" +
-                  str(link_y + 1) + " root netem delay " + str(delay) + "ms")
-        os.system("docker exec -d " + str(container_id_list[link_y]) +
-                  " tc qdisc change dev B" + str(link_y + 1) + "-eth" +
-                  str(link_x + 1) + " root netem delay " + str(delay) + "ms")
+    import re
+    for node, peer in ((link_x, link_y), (link_y, link_x)):
+        cid = container_id_list[node]
+        iface = "B" + str(node + 1) + "-eth" + str(peer + 1)
+        # netem change resets unspecified options; retain the configured rate/loss.
+        existing = subprocess.check_output([
+            'docker', 'exec', cid, 'tc', 'qdisc', 'show', 'dev', iface], universal_newlines=True)
+        options = []
+        for option in ('loss', 'rate'):
+            match = re.search(r"\b" + option + r"\s+([0-9.]+(?:%|[KMGT]?bit))", existing)
+            if match:
+                options.extend([option, match.group(1)])
+        subprocess.run(['docker', 'exec', cid, 'tc', 'qdisc', 'change',
+                        'dev', iface, 'root', 'netem', 'delay', str(delay) + 'ms',
+                        *options], check=True)
 
 
 if __name__ == '__main__':
@@ -587,3 +594,6 @@ if __name__ == '__main__':
         sn_recover(damage_list, container_id_list, sat_loss)
     elif len(sys.argv) == 1:
         sn_stop_emulation()
+
+    if WORKER_ERRORS:
+        raise RuntimeError("StarryNet orchestration worker failed") from WORKER_ERRORS[0]

@@ -1,0 +1,24 @@
+# Private test network for the P2 smoke run. The three directory authorities
+# make a small consensus; the three explicitly named relay roles form the
+# controlled client path. The GS27 relay sidecar carries one address alias per
+# Tor identity; distinct addresses, ports, and data directories prevent
+# consensus identity deduping.
+Authority0 = Node(tag="a", authority=1, relay=1, torrc="authority.tmpl",
+                  ip="9.27.27.14")
+Authority1 = Node(tag="b", authority=1, relay=1, torrc="authority.tmpl",
+                  ip="9.27.27.15")
+Authority2 = Node(tag="d", authority=1, relay=1, torrc="authority.tmpl",
+                  ip="9.27.27.16")
+Guard = Node(tag="g", relay=1, torrc="relay-non-exit.tmpl",
+             ip="9.27.27.11")
+Middle = Node(tag="m", relay=1, torrc="relay-non-exit.tmpl",
+              ip="9.27.27.12")
+ExitRelay = Node(tag="e", relay=1, exit=1, torrc="relay.tmpl",
+                 ip="9.27.27.13")
+Client = Node(tag="c", client=1, torrc="client.tmpl")
+
+NODES = (Authority0.getN(1) + Authority1.getN(1) + Authority2.getN(1)
+         + Guard.getN(1) + Middle.getN(1) + ExitRelay.getN(1)
+         + Client.getN(1))
+
+ConfigureNodes(NODES)
