@@ -12,5 +12,6 @@ RUN mkdir -p /opt/chutney \
     && rm /tmp/chutney-source.tar.gz
 
 COPY networks/p2-smoke /opt/chutney/networks/p2-smoke
+COPY http_server.py /opt/p2-http/http_server.py
 
 CMD ["sleep", "infinity"]

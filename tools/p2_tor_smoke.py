@@ -30,6 +30,7 @@ GUARD_IP = "9.27.27.11"
 RELAY_IPS = ["9.27.27.{0}".format(last) for last in range(11, 17)]
 SERVER_PORT = 18080
 OBJECT_NAME = "fixed-page.html"
+TOR_BOOTSTRAP_TIMEOUT = 300
 OBJECT_BYTES = (b"<!doctype html>\n"
                 b"<html><head><meta charset=\"utf-8\"><title>StarryNet P2</title></head>\n"
                 b"<body><h1>StarryNet controlled Tor smoke page</h1>\n"
@@ -37,6 +38,7 @@ OBJECT_BYTES = (b"<!doctype html>\n"
 REMOTE_ROOT = "/p2"
 REMOTE_CLIENT_ROOT = REMOTE_ROOT + "/client"
 REMOTE_SOURCE_ROOT = "/opt/p2-source"
+SUMMARY_SCHEMA_VERSION = 2
 
 
 def docker(*args, timeout=60, check=True):
@@ -109,22 +111,37 @@ def choose_p2_subnet(details):
     raise RuntimeError("No free subnet in the reserved P2 range 172.29.240.0/20")
 
 
-def check_image():
+def check_image(require_browser=False):
     image_id = command("docker", "image", "inspect", TOR_IMAGE,
                        "--format", "{{.Id}}")
+    checks = [
+        "tor --version",
+        "python3 -c 'import stem; print(\"Stem\", stem.__version__)'",
+        "tcpdump --version | head -n 1",
+        "ip -Version",
+        "iptables --version",
+        "test -x /opt/chutney/chutney",
+        "test -f /opt/p2-http/http_server.py",
+        "cat /etc/p2-tor-packages.txt",
+        "sha256sum -c /etc/p2-chutney-source.sha256 >/dev/null",
+    ]
+    if require_browser:
+        checks.insert(1, "firefox-esr --version")
+    capability_command = "set -eu; " + "; ".join(checks)
     inspect = docker("run", "--rm", "--network", "none", "--read-only",
         "--tmpfs", "/tmp:rw,nosuid,nodev,size=16m", "--cap-drop", "ALL",
         "--security-opt", "no-new-privileges", "--entrypoint", "/bin/sh",
-        TOR_IMAGE, "-c", "tor --version; python3 -c 'import stem; print(\"Stem\", stem.__version__)'; tcpdump --version | head -n 1; ip -Version; iptables --version; test -x /opt/chutney/chutney; cat /etc/p2-tor-packages.txt; sha256sum -c /etc/p2-chutney-source.sha256 >/dev/null",
+        TOR_IMAGE, "-c", capability_command,
         timeout=90)
     if inspect.returncode:
         raise RuntimeError("P2 Tor image capability check failed: "
                            + inspect.stderr.strip())
     return {"image": TOR_IMAGE, "image_id": image_id,
-            "capability_check": inspect.stdout.strip()}
+            "capability_check": inspect.stdout.strip(),
+            "browser_required": require_browser}
 
 
-def preflight():
+def preflight(require_browser=False):
     before = p0_preflight()
     if not shutil.which("tshark"):
         raise RuntimeError("Host tshark is required to validate both PCAP files")
@@ -136,7 +153,7 @@ def preflight():
         "label={0}={1}".format(P2_OWNER_LABEL, P2_OWNER_VALUE)).stdout.split()
     if existing_networks:
         raise RuntimeError("Existing P2 networks found: " + str(existing_networks))
-    image = check_image()
+    image = check_image(require_browser=require_browser)
     subnet = choose_p2_subnet(docker_network_details())
     return {"preflight_passed": True, "inventory": before,
             "tor_image": image, "private_subnet": str(subnet),
@@ -159,6 +176,56 @@ def make_fixture(run):
     fixture.parent.mkdir(parents=True, exist_ok=True)
     fixture.write_bytes(OBJECT_BYTES)
     return fixture
+
+
+def make_browser_fixtures(run):
+    root = run / "fixture" / "browser"
+    fixture_root = root / "pilot"
+    svg = (b'<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32">'
+           b'<rect width="32" height="32" fill="#4267b2"/></svg>')
+    assets = {
+        "basic/index.html": ("<!doctype html><html><head><meta charset=\"utf-8\">"
+            "<title>pilot-basic</title></head><body><main>basic</main>"
+            "<script>document.documentElement.dataset.pilotComplete='basic';</script>"
+            "</body></html>\n").encode(),
+        "assets/index.html": ("<!doctype html><html><head><meta charset=\"utf-8\">"
+            "<title>pilot-assets</title><link rel=\"stylesheet\" href=\"style.css\">"
+            "</head><body><img src=\"asset.svg\"><main>assets</main>"
+            "<script src=\"app.js\"></script></body></html>\n").encode(),
+        "assets/style.css": b"body{background:#eef} main{font-family:sans-serif}\n",
+        "assets/app.js": b"document.documentElement.dataset.pilotComplete='assets';\n",
+        "assets/asset.svg": svg,
+    }
+    many_html = ["<!doctype html><html><head><meta charset=\"utf-8\">",
+                 "<title>pilot-many</title><link rel=\"stylesheet\" href=\"style.css\"></head>",
+                 "<body><main>many</main>"]
+    many_html.extend('<img src="asset-{0}.svg">'.format(i) for i in range(8))
+    many_html.append('<script src="app.js"></script></body></html>\n')
+    assets["many/index.html"] = "".join(many_html).encode()
+    assets["many/style.css"] = b"img{width:32px;height:32px} body{background:#efe}\n"
+    assets["many/app.js"] = b"document.documentElement.dataset.pilotComplete='many';\n"
+    for index in range(8):
+        assets["many/asset-{0}.svg".format(index)] = svg
+    for relative, content in assets.items():
+        destination = fixture_root / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(content)
+    fixtures = [
+        {"page_id": "basic", "path": "/pilot/basic/index.html",
+         "expected_marker": "basic", "expected_images": 0,
+         "minimum_stylesheets": 0},
+        {"page_id": "assets", "path": "/pilot/assets/index.html",
+         "expected_marker": "assets", "expected_images": 1,
+         "minimum_stylesheets": 1},
+        {"page_id": "many", "path": "/pilot/many/index.html",
+         "expected_marker": "many", "expected_images": 8,
+         "minimum_stylesheets": 1},
+    ]
+    for fixture in fixtures:
+        html_path = root / fixture["path"].lstrip("/")
+        fixture["html_bytes"] = html_path.stat().st_size
+        fixture["html_sha256"] = hashlib.sha256(html_path.read_bytes()).hexdigest()
+    return fixtures
 
 
 def write_json(path, value):
@@ -240,7 +307,7 @@ def start_capture(cid, label, capture_filter, interface):
     pcap = REMOTE_ROOT + "/" + label + ".pcap"
     pid = REMOTE_ROOT + "/" + label + ".tcpdump.pid"
     log = REMOTE_ROOT + "/" + label + ".tcpdump.log"
-    shell = ("tcpdump -i {interface} -n -s 0 -U -w {pcap} {filter} "
+    shell = ("tcpdump -Z root -i {interface} -n -s 0 -U -w {pcap} {filter} "
              "> {log} 2>&1 & echo $! > {pid}; wait $!").format(
                  interface=shlex_quote(interface), pcap=shlex_quote(pcap),
                  filter=shlex_quote(capture_filter), log=shlex_quote(log),
@@ -248,13 +315,34 @@ def start_capture(cid, label, capture_filter, interface):
     docker("exec", "-d", cid, "sh", "-c", shell, timeout=15)
     deadline = time.monotonic() + 12
     while time.monotonic() < deadline:
+        detail = ""
         try:
             size = int(docker_exec(cid, "sh", "-c",
                 "wc -c < " + shlex_quote(pcap), timeout=5))
-            if size >= 24:
+            running = docker_exec(cid, "sh", "-c",
+                "kill -0 \"$(cat {0})\"".format(shlex_quote(pid)),
+                timeout=5, check=False)
+            detail = docker_exec(cid, "cat", log, check=False).stdout.strip()
+            if size >= 24 and running.returncode == 0:
+                header = docker_output_bytes(cid, "head", "-c", "24", pcap)
+                linktype = pcap_linktype(header)
+                if linktype == 276:
+                    raise RuntimeError("tcpdump selected unsupported Linux SLL2 "
+                                       "capture type on {0}".format(interface))
                 return {"cid": cid, "label": label, "pcap": pcap,
-                        "pid": pid, "log": log}
-        except (RuntimeError, ValueError):
+                        "pid": pid, "log": log, "interface": interface,
+                        "filter": capture_filter, "linktype": linktype,
+                        "start_log": detail}
+            if running.returncode and detail:
+                raise RuntimeError("tcpdump exited before capture became ready "
+                                   "for {0}: {1}".format(label, detail))
+        except RuntimeError as exc:
+            # A missing file is normal during the first polling cycles;
+            # once tcpdump has written a diagnostic, surface it instead
+            # of hiding a dead capture process until the generic timeout.
+            if "unsupported Linux SLL2" in str(exc) or detail:
+                raise exc
+        except ValueError:
             pass
         time.sleep(0.2)
     detail = docker_exec(cid, "cat", log, check=False).stdout.strip()
@@ -333,6 +421,39 @@ def stop_capture(capture):
             stable = 0
             prior = size
         time.sleep(0.25)
+    exit_state = docker_exec(capture["cid"], "sh", "-c",
+        "kill -0 \"$(cat {0})\"".format(shlex_quote(capture["pid"])),
+        timeout=5, check=False)
+    final_log = docker_exec(capture["cid"], "cat", capture["log"],
+                            timeout=5, check=False).stdout.strip()
+    if exit_state.returncode == 0:
+        raise RuntimeError("tcpdump did not stop after SIGINT: " + capture["label"])
+    if "packets captured" not in final_log:
+        raise RuntimeError("tcpdump did not report a clean capture shutdown: "
+                           + final_log)
+    capture["stop_log"] = final_log
+    capture["stopped"] = True
+
+
+def pcap_linktype(header):
+    if len(header) < 24:
+        raise RuntimeError("PCAP global header is incomplete")
+    magic = header[:4]
+    if magic == b"\xd4\xc3\xb2\xa1":
+        byte_order = "little"
+    elif magic == b"\xa1\xb2\xc3\xd4":
+        byte_order = "big"
+    elif magic == b"\x4d\x3c\xb2\xa1":
+        byte_order = "little"
+    elif magic == b"\xa1\xb2\x3c\x4d":
+        byte_order = "big"
+    else:
+        raise RuntimeError("Unsupported PCAP magic: " + magic.hex())
+    major = int.from_bytes(header[4:6], byte_order)
+    minor = int.from_bytes(header[6:8], byte_order)
+    if (major, minor) != (2, 4):
+        raise RuntimeError("Unsupported PCAP version {0}.{1}".format(major, minor))
+    return int.from_bytes(header[20:24], byte_order)
 
 
 class VisitScheduler:
@@ -391,7 +512,19 @@ def verify_visit(visit, expected_hash, expected_size, expected_path):
             fingerprint = str(item).split("~", 1)[0]
         actual.append(str(fingerprint).lstrip("$").upper())
     metrics = visit.get("curl_metrics", {})
-    exact_path = actual == [fp.upper() for fp in expected_path]
+    expected = [str(fp).lstrip("$").upper() for fp in expected_path]
+    exact_path = actual == expected
+    stream_evidence = visit.get("tor_stream_evidence", {})
+    stream_events = stream_evidence.get("stream_events", [])
+    successful_streams = [row for row in stream_events
+        if row.get("status") == "SUCCEEDED"
+        and str(row.get("target_address", "")) == str(stream_evidence.get("target_address", ""))
+        and str(row.get("target_port", "")) == str(stream_evidence.get("target_port", ""))]
+    stream_ids = set(stream_evidence.get("stream_ids", []))
+    circuit_matches = any(str(row.get("circ_id")) == str(visit.get("circuit_id"))
+                          for row in successful_streams)
+    stream_proven = bool(stream_ids and successful_streams and circuit_matches
+                          and not stream_evidence.get("attach_errors"))
     return {
         **visit,
         "object_matches_expected": bool(
@@ -400,6 +533,8 @@ def verify_visit(visit, expected_hash, expected_size, expected_path):
             and metrics.get("http_code") == "200"
             and int(float(metrics.get("size_download", "0") or 0)) == expected_size),
         "controlled_path_matches": exact_path,
+        "tor_stream_proven": stream_proven,
+        "tor_stream_ids": sorted(stream_ids),
         "route_uses_satellite_interface": bool(re.search(
             r"\bdev B26-eth\d+\b", visit.get("route_to_guard", ""))),
     }
@@ -423,8 +558,11 @@ def analyze_client_capture(pcap, guard_ip, guard_or_port):
                 or row["dport"] == guard_or_port]
     raw = pcap.read_bytes()
     positive = [row for row in selected if row["payload"] > 0]
+    header = pcap.read_bytes()[:24]
     return {"endpoint": "GS26 satellite-side capture", "pcap": str(pcap),
             "pcap_bytes": pcap.stat().st_size,
+            "pcap_linktype": pcap_linktype(header),
+            "pcap_sha256": hashlib.sha256(pcap.read_bytes()).hexdigest(),
             "guard_ip": guard_ip, "guard_or_port": guard_or_port,
             "guard_tcp_packet_count": len(selected),
             "guard_tcp_payload_packet_count": len(positive),
@@ -455,8 +593,11 @@ def analyze_server_capture(pcap):
             SERVER_PORT), "-T", "fields", "-e", "frame.number").splitlines()
     frames = tshark_output("-r", pcap, "-T", "fields", "-e", "frame.number").splitlines()
     raw = pcap.read_bytes()
+    header = pcap.read_bytes()[:24]
     return {"endpoint": "Tor Exit to fixed page server", "pcap": str(pcap),
             "pcap_bytes": pcap.stat().st_size, "packet_count": len(frames),
+            "pcap_linktype": pcap_linktype(header),
+            "pcap_sha256": hashlib.sha256(pcap.read_bytes()).hexdigest(),
             "decoded_get_count": len(request_rows),
             "raw_get_header_count": len(raw_gets),
             "get_count": max(len(request_rows), len(raw_gets)),
@@ -479,6 +620,152 @@ def analyze_server_log(path):
             "log_file": str(path)}
 
 
+def capture_gate_passed(client_result, server_result, visits,
+                        server_application_log):
+    successful_visits = sum(bool(item.get("object_matches_expected"))
+                            for item in visits)
+    return bool(
+        client_result.get("pcap_bytes", 0) > 24
+        and client_result.get("guard_tcp_payload_bytes", 0) > 0
+        and client_result.get("guard_address_seen")
+        and not client_result.get("http_object_request_visible")
+        and not client_result.get("http_200_response_visible")
+        and client_result.get("pcap_linktype") != 276
+        and server_result.get("pcap_bytes", 0) > 24
+        and server_result.get("packet_count", 0) > 0
+        and server_result.get("pcap_linktype") != 276
+        and server_result.get("get_count", 0) >= successful_visits
+        and server_result.get("http_200_count", 0) >= successful_visits
+        and server_application_log.get("successful_get_count", 0) >= successful_visits
+        and successful_visits > 0
+        and server_result.get("fixed_page_request_visible")
+        and server_result.get("http_200_response_visible"))
+
+
+def verify_run_directory(run_dir):
+    run_dir = Path(run_dir).resolve()
+    report = {"run_dir": str(run_dir), "passed": False, "errors": [],
+              "strict_errors": [], "browser_errors": []}
+    try:
+        manifest = json.loads((run_dir / "manifest.json").read_text())
+        summary = json.loads((run_dir / "summary.json").read_text())
+    except Exception as exc:
+        report["errors"].append("Could not read run manifest/summary: " + str(exc))
+        return report
+    report["run_id"] = summary.get("run_id")
+    if summary.get("summary_schema_version") != SUMMARY_SCHEMA_VERSION:
+        report["strict_errors"].append("Summary schema version is missing or unsupported")
+    if manifest.get("run_id") != summary.get("run_id"):
+        report["strict_errors"].append("Run ID differs between manifest and summary")
+    visits = {item.get("scheduled_phase"): item for item in summary.get("visits", [])}
+    expected_phases = ("stable", "before_handover", "after_handover")
+    expected_hash = manifest.get("object", {}).get("sha256")
+    expected_size = manifest.get("object", {}).get("bytes")
+    expected_path = summary.get("initial_circuit", {}).get(
+        "requested_fingerprints", [])
+    strict_visits = {}
+    for phase in expected_phases:
+        if phase not in visits:
+            report["strict_errors"].append("Missing visit phase: " + phase)
+            continue
+        strict_visits[phase] = verify_visit(visits[phase], expected_hash,
+                                           expected_size, expected_path)
+        visit = strict_visits[phase]
+        if not all(visit.get(key) for key in ("object_matches_expected",
+                "controlled_path_matches", "route_uses_satellite_interface",
+                "tor_stream_proven")):
+            report["strict_errors"].append("Visit failed strict evidence gate: " + phase)
+    captures_dir = run_dir / "captures"
+    client_pcap = captures_dir / "client.pcap"
+    server_pcap = captures_dir / "exit-server.pcap"
+    if not client_pcap.is_file() or not server_pcap.is_file():
+        report["strict_errors"].append("One or both endpoint PCAPs are missing")
+    else:
+        try:
+            guard_ip = summary.get("client", {}).get("guard_ip", GUARD_IP)
+            guard = next((item for item in summary.get("tor_network_setup", {}).get(
+                "nodes", []) if item.get("role") == "guard"), None)
+            if guard is None:
+                raise ValueError("Guard metadata is missing")
+            capture_results = [
+                analyze_client_capture(client_pcap, guard_ip, guard["or_port"]),
+                analyze_server_capture(server_pcap)]
+            server_log = analyze_server_log(run_dir / "logs" / "http-server.log")
+            report["captures"] = capture_results
+            report["dual_endpoint_capture_passed"] = capture_gate_passed(
+                capture_results[0], capture_results[1], list(strict_visits.values()),
+                server_log)
+            if not report["dual_endpoint_capture_passed"]:
+                report["strict_errors"].append("Endpoint PCAP/application evidence did not pass")
+        except Exception as exc:
+            report["strict_errors"].append("PCAP verification failed: " + str(exc))
+    if not summary.get("cleanup_verified"):
+        report["strict_errors"].append("Run did not verify cleanup")
+    if (summary.get("resource_inventory_before")
+            != summary.get("resource_inventory_after")):
+        report["strict_errors"].append("Docker inventory changed during the run")
+    if summary.get("mode") == "browser-pilot":
+        browser_results = summary.get("browser_visits", [])
+        expected_pages = {item.get("page_id"): item
+                          for item in manifest.get("browser_pilot", {}).get(
+                              "pages", [])}
+        page_counts = {}
+        for item in browser_results:
+            page_id = item.get("page_id")
+            page_counts[page_id] = page_counts.get(page_id, 0) + 1
+        report["browser_visit_count"] = len(browser_results)
+        report["browser_success_count"] = sum(
+            bool(item.get("ok")) for item in browser_results)
+        report["browser_stream_success_count"] = sum(
+            bool(item.get("target_stream_succeeded_on_circuit"))
+            for item in browser_results)
+        report["browser_page_counts"] = page_counts
+        report["browser_sample_ids"] = [item.get("sample_id")
+                                         for item in browser_results]
+        if len(set(report["browser_sample_ids"])) != len(browser_results):
+            report["browser_errors"].append("Browser sample IDs are duplicated")
+        expected_repeats = manifest.get("browser_pilot", {}).get(
+            "repeats_per_page", 5)
+        if (set(page_counts) != set(expected_pages)
+                or any(page_counts.get(page_id) != expected_repeats
+                       for page_id in expected_pages)):
+            report["browser_errors"].append(
+                "Browser page counts do not match the frozen pilot manifest")
+        for item in browser_results:
+            page = expected_pages.get(item.get("page_id"))
+            if page and item.get("fixture_sha256") != page.get("html_sha256"):
+                report["browser_errors"].append(
+                    "Browser fixture hash mismatch: " + str(item.get("sample_id")))
+        report["browser_pilot_passed"] = bool(
+            len(browser_results) == len(expected_pages) * expected_repeats
+            and not report["browser_errors"]
+            and all(item.get("ok")
+                    and item.get("target_stream_succeeded_on_circuit")
+                    for item in browser_results))
+        if not report["browser_pilot_passed"]:
+            if "Browser pilot evidence did not pass" not in report["browser_errors"]:
+                report["browser_errors"].append("Browser pilot evidence did not pass")
+    report["strict_regression_passed"] = not report["strict_errors"]
+    report["errors"] = report["strict_errors"] + report["browser_errors"]
+    report["passed"] = not report["errors"]
+    return report
+
+
+def verify_completed_runs(run_dirs, minimum_runs=2):
+    reports = [verify_run_directory(path) for path in run_dirs]
+    run_ids = [report.get("run_id") for report in reports]
+    repeatability = (minimum_runs >= 1 and len(reports) >= minimum_runs
+                     and len(set(run_ids)) == len(run_ids)
+                     and all(report.get("passed") for report in reports))
+    return {"minimum_independent_runs": minimum_runs,
+            "repeatability_passed": repeatability,
+            "passed": repeatability,
+            "runs": reports,
+            "errors": ([] if repeatability else [
+                "Provide at least {0} distinct, strictly passing run directories".format(
+                    minimum_runs)])}
+
+
 def copy_remote_file(cid, source, target):
     exists = docker_exec(cid, "test", "-f", source, timeout=10, check=False)
     if exists.returncode:
@@ -489,7 +776,8 @@ def copy_remote_file(cid, source, target):
     return True
 
 
-def save_runtime_artifacts(run, relay_cid, client_cid, server_cid):
+def save_runtime_artifacts(run, relay_cid, client_cid, server_cid,
+                           browser_sample_ids=()):
     copied = []
     source_root = run / "source"
     chutney_archive = docker_output_bytes(relay_cid, "tar", "-C", "/opt",
@@ -523,7 +811,84 @@ def save_runtime_artifacts(run, relay_cid, client_cid, server_cid):
             target.parent.mkdir(parents=True, exist_ok=True)
             if copy_remote_file(client_cid, source, target):
                 copied.append(str(target.relative_to(run)))
+    for sample_id in browser_sample_ids:
+        for filename in ("result.json", "firefox.log", "user.js"):
+            source = REMOTE_ROOT + "/browser/{0}/{1}".format(sample_id, filename)
+            target = run / "browser" / sample_id / filename
+            target.parent.mkdir(parents=True, exist_ok=True)
+            if copy_remote_file(client_cid, source, target):
+                copied.append(str(target.relative_to(run)))
     return copied
+
+
+def upload_browser_fixtures(server_cid, run):
+    root = run / "fixture" / "browser" / "pilot"
+    for source in sorted(root.rglob("*")):
+        if not source.is_file():
+            continue
+        relative = source.relative_to(root).as_posix()
+        destination = "/p2/www/pilot/" + relative
+        parent = str(Path(destination).parent)
+        docker_exec(server_cid, "mkdir", "-p", parent)
+        docker_exec_stdin(server_cid, source.read_bytes(), "python3", "-c",
+            "import pathlib,sys; pathlib.Path({0!r}).write_bytes("
+            "sys.stdin.buffer.read())".format(destination))
+
+
+def run_browser_pilot(client_cid, server_ip, fixtures, run, repeats=5,
+                      timeout=60, post_load_seconds=5):
+    results = []
+    for fixture in fixtures:
+        for repetition in range(1, repeats + 1):
+            sample_id = "p3-{0}-r{1:02d}".format(fixture["page_id"], repetition)
+            remote_output = REMOTE_ROOT + "/browser/" + sample_id
+            command = ["python3", REMOTE_SOURCE_ROOT + "/browser_agent.py",
+                "--agent-socket", REMOTE_CLIENT_ROOT + "/agent.sock",
+                "--sample-id", sample_id,
+                "--url", "http://{0}:{1}{2}".format(
+                    server_ip, SERVER_PORT, fixture["path"]),
+                "--server-ip", server_ip, "--server-port", str(SERVER_PORT),
+                "--expected-marker", fixture["expected_marker"],
+                "--expected-images", str(fixture["expected_images"]),
+                "--minimum-stylesheets", str(fixture["minimum_stylesheets"]),
+                "--timeout", str(timeout), "--post-load-seconds",
+                str(post_load_seconds), "--output-dir", remote_output]
+            completed = docker("exec", client_cid, *command,
+                               timeout=timeout + 35, check=False)
+            result = None
+            for line in reversed(completed.stdout.splitlines()):
+                try:
+                    result = json.loads(line)
+                    break
+                except json.JSONDecodeError:
+                    continue
+            if result is None:
+                result = {"sample_id": sample_id, "ok": False,
+                          "error": completed.stderr.strip()
+                          or "Browser agent produced no result JSON"}
+            if completed.returncode and not result.get("error"):
+                result["error"] = completed.stderr.strip() or "Browser agent exited nonzero"
+                result["ok"] = False
+            result.setdefault("sample_id", sample_id)
+            result.setdefault("browser", None)
+            result["page_id"] = fixture["page_id"]
+            result["repetition"] = repetition
+            result["fixture_sha256"] = fixture["html_sha256"]
+            result["scheduled_phase"] = "stable"
+            results.append(result)
+    local_root = run / "browser"
+    local_root.mkdir(parents=True, exist_ok=True)
+    write_json(local_root / "pilot_manifest.json", {
+        "schema_version": 1, "mode": "stable_browser_pilot",
+        "browser_version": results[0]["browser"] if results else None,
+        "repeats_per_page": repeats, "timeout_seconds": timeout,
+        "post_load_seconds": post_load_seconds,
+        "cache_policy": "fresh Firefox profile for every visit",
+        "proxy": "Tor SOCKS5 at 127.0.0.1:9050 with remote DNS",
+        "fixtures": fixtures,
+        "sample_ids": [item["sample_id"] for item in results]})
+    write_json(local_root / "pilot_results.json", {"visits": results})
+    return results
 
 
 def cleanup_helpers():
@@ -540,26 +905,45 @@ def cleanup_helpers():
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("mode", nargs="?",
-                        choices=["plan", "preflight", "build-image", "run"],
+                        choices=["plan", "preflight", "build-image", "run",
+                                 "browser-pilot", "verify"],
                         default="plan")
+    parser.add_argument("--run-dir", nargs="+", type=Path,
+                        help="Completed run directory or directories for offline verification")
+    parser.add_argument("--browser-repeats", type=int, default=5)
+    parser.add_argument("--browser-timeout", type=int, default=60)
+    parser.add_argument("--minimum-runs", type=int, default=2)
     args = parser.parse_args()
+
+    if args.mode == "plan":
+        print(json.dumps({"experiment": "P2 controlled Tor smoke",
+            "route": ["GS26", "satellite B26-eth*", "GS27 gateway",
+                      "Tor Guard", "Tor Middle", "Tor Exit", "fixed page server"],
+            "visits": ["stable baseline", "before first GS27 handover",
+                       "after first GS27 handover"],
+            "browser_pilot": {"mode": "browser-pilot", "pages": 3,
+                "repetitions_per_page": 5, "default_visits": 15,
+                "fresh_profile_per_visit": True},
+            "artifacts": ["versioned summary/manifest", "frozen source",
+                          "Tor STREAM-to-circuit evidence", "client and server PCAP",
+                          "fixed-page downloads", "optional browser pilot"],
+            "image": TOR_IMAGE}, indent=2))
+        return
+    if args.mode == "verify":
+        if not args.run_dir:
+            parser.error("verify requires --run-dir <run> [<run> ...]")
+        result = verify_completed_runs(args.run_dir, args.minimum_runs)
+        print(json.dumps(result, indent=2, sort_keys=True))
+        if not result["passed"]:
+            raise SystemExit(1)
+        return
+
     lock = (ROOT / ".p0.lock").open("a")
     try:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
         raise RuntimeError("Another local StarryNet experiment is running")
 
-    if args.mode == "plan":
-        print(json.dumps({"experiment": "P2 controlled Tor smoke",
-            "route": ["GS26", "satellite B26-eth*", "GS27 gateway",
-                      "Tor Guard", "Tor Middle", "Tor Exit", "fixed page server"],
-            "satellite_impairment_scope": "GS26 satellite access segment",
-            "visits": ["stable baseline", "before first GS27 handover",
-                       "after first GS27 handover"],
-            "artifacts": ["summary.json", "frozen source", "Tor configs/logs",
-                          "client and exit/server PCAP", "three fixed-page downloads"],
-            "image": TOR_IMAGE}, indent=2))
-        return
     if args.mode == "build-image":
         docker_stream("build", "--pull", "--build-arg", "TOR_PACKAGE_VERSION=0.4.9.11-0+deb12u1",
             "--build-arg", "STEM_PACKAGE_VERSION=1.8.1-2.1", "-t", BASE_TOR_IMAGE,
@@ -567,10 +951,12 @@ def main():
         docker_stream("build", "--build-arg", "TOR_BASE_IMAGE=" + BASE_TOR_IMAGE,
             "-t", TOR_IMAGE, "-f", "tools/p2_tor/Dockerfile.chutney",
             "tools/p2_tor", timeout=1800)
-        print(json.dumps(check_image(), indent=2))
+        print(json.dumps(check_image(require_browser=True), indent=2))
         return
 
-    ready = preflight()
+    if args.mode == "browser-pilot" and args.browser_repeats != 5:
+        raise RuntimeError("The initial accepted browser pilot is fixed at 5 visits per page")
+    ready = preflight(require_browser=(args.mode == "browser-pilot"))
     if args.mode == "preflight":
         print(json.dumps(ready, indent=2))
         return
@@ -581,12 +967,15 @@ def main():
         "%Y%m%dT%H%M%S_%fZ")
     run.mkdir(parents=True)
     fixture = make_fixture(run)
+    browser_fixtures = make_browser_fixtures(run)
     source_hashes = freeze_source(run)
     load_frozen_helpers(run)
     config = json.loads((run / "config.json").read_text())
     run_config_sha256 = hashlib.sha256((run / "config.json").read_bytes()).hexdigest()
     manifest = {
         "experiment": "P2_StarryNet_Controlled_Tor_Circuit_Smoke",
+        "run_id": run.name,
+        "summary_schema_version": SUMMARY_SCHEMA_VERSION,
         "created_utc": datetime.now(timezone.utc).isoformat(),
         "source_commit": command("git", "-C", str(ROOT), "rev-parse", "HEAD"),
         "source_sha256": source_hashes,
@@ -603,6 +992,10 @@ def main():
         "exit_server": {"ip": str(private_subnet.network_address + 50),
                         "port": SERVER_PORT},
         "visits": ["stable", "before_handover", "after_handover"],
+        "browser_pilot": (None if args.mode != "browser-pilot" else {
+            "pages": browser_fixtures, "repeats_per_page": args.browser_repeats,
+            "timeout_seconds": args.browser_timeout,
+            "fresh_profile_per_visit": True}),
         "capture": {"client": "tcp host 9.27.27.11 and tcp port <Guard ORPort>",
                     "exit_server": "tcp port 18080"},
         "tshark_version": tshark_output("--version").splitlines()[0],
@@ -618,7 +1011,9 @@ def main():
     captures = []
     failure = None
     started = time.monotonic()
-    summary = {"mode": "run", "p2_completed": False,
+    summary = {"mode": args.mode, "summary_schema_version": SUMMARY_SCHEMA_VERSION,
+        "run_id": run.name, "p2_completed": False,
+        "strict_regression_passed": False, "browser_pilot_passed": None,
         "circuit_established": False, "stable_content_verified": False,
         "controlled_circuit_path_verified": False,
         "dual_endpoint_capture_passed": False,
@@ -678,8 +1073,9 @@ def main():
         docker("run", "-d", "--name", "p2-tor-page-" + name_suffix,
             "--label", "{0}={1}".format(P2_OWNER_LABEL, P2_OWNER_VALUE),
             "--network", p2_network, "--ip", network_ip(50), "--read-only",
-            "--tmpfs", "/p2:rw,nosuid,nodev,size=32m", "--cap-drop", "ALL",
-            "--cap-add", "NET_RAW",
+            "--tmpfs", "/p2:rw,nosuid,nodev,size=32m,mode=700", "--cap-drop", "ALL",
+            "--cap-add", "NET_RAW", "--cap-add", "NET_ADMIN",
+            "--cap-add", "SETUID", "--cap-add", "SETGID", "--cap-add", "CHOWN",
             "--security-opt", "no-new-privileges", TOR_IMAGE)
         server_cid = command("docker", "ps", "-q", "--filter",
             "name=p2-tor-page-" + name_suffix).splitlines()[0]
@@ -687,8 +1083,10 @@ def main():
         docker_exec_stdin(server_cid, fixture.read_bytes(), "python3", "-c",
             "import pathlib,sys; pathlib.Path('/p2/www/{0}').write_bytes("
             "sys.stdin.buffer.read())".format(OBJECT_NAME))
-        server_script = ("python3 -m http.server --bind 0.0.0.0 {port} "
-                         "--directory /p2/www > /p2/http-server.log 2>&1 & "
+        if args.mode == "browser-pilot":
+            upload_browser_fixtures(server_cid, run)
+        server_script = ("python3 /opt/p2-http/http_server.py --bind 0.0.0.0 "
+                         "--port {port} --directory /p2/www > /p2/http-server.log 2>&1 & "
                          "echo $! > /p2/http-server.pid; wait $!").format(
                              port=SERVER_PORT)
         docker("exec", "-d", server_cid, "sh", "-c", server_script)
@@ -710,7 +1108,7 @@ def main():
             "--label", "{0}={1}".format(P2_OWNER_LABEL, P2_OWNER_VALUE),
             "--network", "GS_27", "--ip", GUARD_IP, "--read-only",
             "--tmpfs", "/p2:rw,nosuid,nodev,size=512m", "--cap-drop", "ALL",
-            "--cap-add", "NET_ADMIN",
+            "--cap-add", "NET_ADMIN", "--cap-add", "NET_RAW",
             "--mount", "type=bind,source={0},target={1},readonly".format(
                 str(relay_source), REMOTE_SOURCE_ROOT),
             "--mount", "type=bind,source={0},target=/opt/chutney/networks/p2-smoke,readonly".format(
@@ -790,8 +1188,10 @@ def main():
         docker("run", "-d", "--name", "p2-tor-client-" + name_suffix,
             "--label", "{0}={1}".format(P2_OWNER_LABEL, P2_OWNER_VALUE),
             "--network", "container:" + client_cid, "--read-only",
-            "--tmpfs", "/p2:rw,nosuid,nodev,size=128m", "--cap-drop", "ALL",
-            "--cap-add", "NET_RAW", "--security-opt", "no-new-privileges",
+            "--tmpfs", "/p2:rw,nosuid,nodev,size=256m,mode=700", "--cap-drop", "ALL",
+            "--cap-add", "NET_RAW", "--cap-add", "NET_ADMIN",
+            "--cap-add", "SETUID", "--cap-add", "SETGID", "--cap-add", "CHOWN",
+            "--security-opt", "no-new-privileges",
             "--mount", "type=bind,source={0},target={1},readonly".format(
                 str(run / "source" / "tools" / "p2_tor"), REMOTE_SOURCE_ROOT),
             TOR_IMAGE)
@@ -812,12 +1212,16 @@ def main():
             "--root", REMOTE_CLIENT_ROOT, "--guard-ip", GUARD_IP,
             "--server-ip", network_ip(50), "--server-port", str(SERVER_PORT),
             "--object-name", OBJECT_NAME, "--path", ",".join(path),
+            "--bootstrap-timeout", str(TOR_BOOTSTRAP_TIMEOUT),
             "--ready-file", REMOTE_CLIENT_ROOT + "/ready.json"]
         agent_shell = "exec {0} >>{1}/agent.log 2>&1".format(
             " ".join(shlex_quote(part) for part in agent_command),
             shlex_quote(REMOTE_CLIENT_ROOT))
         docker("exec", "-d", client_cid, "sh", "-c", agent_shell, timeout=15)
-        ready_deadline = time.monotonic() + 240
+        # Leave a small host-side margin after the controller's bootstrap
+        # timeout so a slow private consensus produces the agent's diagnostic
+        # rather than an earlier, misleading host timeout.
+        ready_deadline = time.monotonic() + TOR_BOOTSTRAP_TIMEOUT + 60
         initial_circuit = None
         while time.monotonic() < ready_deadline:
             status = docker_exec(client_cid, "cat", REMOTE_CLIENT_ROOT + "/ready.json",
@@ -880,6 +1284,26 @@ def main():
         summary["stable_content_verified"] = stable_visit["object_matches_expected"]
         summary["controlled_circuit_path_verified"] = stable_visit[
             "controlled_path_matches"]
+
+        if not stable_visit["object_matches_expected"]:
+            raise RuntimeError("Stable fixed-page request failed; dynamic visits "
+                               "were skipped to preserve the failure evidence")
+        browser_sample_ids = []
+        if args.mode == "browser-pilot":
+            browser_results = run_browser_pilot(client_cid,
+                str(private_subnet.network_address + 50), browser_fixtures,
+                run, repeats=args.browser_repeats, timeout=args.browser_timeout)
+            summary["browser_visits"] = browser_results
+            summary["browser_sample_ids"] = [item["sample_id"]
+                                               for item in browser_results]
+            summary["browser_pilot_passed"] = bool(len(browser_results) == 15
+                and all(item.get("ok")
+                        and item.get("target_stream_succeeded_on_circuit")
+                        for item in browser_results))
+            browser_sample_ids = [item["sample_id"] for item in browser_results]
+            if not summary["browser_pilot_passed"]:
+                raise RuntimeError("Stable browser pilot did not pass; dynamic visits "
+                                   "were skipped to preserve the failure evidence")
 
         visitor = VisitScheduler(client_cid, run, time.monotonic(), GUARD_IP)
         sn.schedule_callback(before_visit_second,
@@ -968,7 +1392,8 @@ def main():
                 docker_exec(relay_cid, *archive, timeout=60, check=False)
             if relay_cid and client_cid and server_cid:
                 summary["artifacts_copied"] = save_runtime_artifacts(
-                    run, relay_cid, client_cid, server_cid)
+                    run, relay_cid, client_cid, server_cid,
+                    summary.get("browser_sample_ids", ()))
         except Exception as exc:
             summary["artifact_error"] = str(exc)
             if failure is None:
@@ -987,26 +1412,9 @@ def main():
                 client_result, server_result = summary["captures"]
                 summary["server_application_log"] = analyze_server_log(
                     run / "logs" / "http-server.log")
-                summary["dual_endpoint_capture_passed"] = bool(
-                    client_result["pcap_bytes"] > 24
-                    and client_result["guard_tcp_payload_bytes"] > 0
-                    and client_result["guard_address_seen"]
-                    and not client_result["http_object_request_visible"]
-                    and not client_result["http_200_response_visible"]
-                    and server_result["pcap_bytes"] > 24
-                    and server_result["get_count"] >= sum(
-                        bool(item.get("object_matches_expected"))
-                        for item in summary["visits"])
-                    and server_result["http_200_count"] >= sum(
-                        bool(item.get("object_matches_expected"))
-                        for item in summary["visits"])
-                    and summary["server_application_log"].get(
-                        "successful_get_count", 0) >= sum(
-                        bool(item.get("object_matches_expected"))
-                        for item in summary["visits"])
-                    and summary["stable_content_verified"]
-                    and server_result["fixed_page_request_visible"]
-                    and server_result["http_200_response_visible"])
+                summary["dual_endpoint_capture_passed"] = capture_gate_passed(
+                    client_result, server_result, summary["visits"],
+                    summary["server_application_log"])
             except Exception as exc:
                 summary["capture_analysis_error"] = str(exc)
                 if failure is None:
@@ -1054,6 +1462,18 @@ def main():
             and summary.get("satellite_path_proven")
             and summary.get("cleanup_verified")
             and summary.get("handover_visits_recorded"))
+        required_phases = {"stable", "before_handover", "after_handover"}
+        visits_by_phase = {item.get("scheduled_phase"): item
+                           for item in summary["visits"]}
+        summary["strict_regression_passed"] = bool(
+            required_phases.issubset(visits_by_phase)
+            and all(visits_by_phase[phase].get("object_matches_expected")
+                    and visits_by_phase[phase].get("controlled_path_matches")
+                    and visits_by_phase[phase].get("route_uses_satellite_interface")
+                    and visits_by_phase[phase].get("tor_stream_proven")
+                    for phase in required_phases)
+            and summary.get("dual_endpoint_capture_passed")
+            and summary.get("cleanup_verified"))
         summary["wall_seconds"] = round(time.monotonic() - started, 3)
         write_json(run / "summary.json", summary)
         print(json.dumps(summary, indent=2), flush=True)
@@ -1061,6 +1481,10 @@ def main():
         raise failure
     if not summary["p2_completed"]:
         raise RuntimeError("P2 completion gates failed; inspect summary.json")
+    if not summary["strict_regression_passed"]:
+        raise RuntimeError("P2 strict regression gates failed; inspect summary.json")
+    if args.mode == "browser-pilot" and not summary.get("browser_pilot_passed"):
+        raise RuntimeError("Browser pilot gates failed; inspect summary.json")
 
 
 if __name__ == "__main__":
