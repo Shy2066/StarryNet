@@ -11,7 +11,7 @@ sys.path.insert(0, str(ROOT))
 from starrynet.local import LocalExecutor, LocalFiles
 from starrynet import sn_utils, sn_orchestrater
 sys.path.insert(0, str(ROOT / 'tools'))
-from p0_smoke import ping_result
+from p0_smoke import ping_result, topology_report
 from starrynet.sn_thread import CheckedThread, WORKER_ERRORS
 
 
@@ -106,18 +106,24 @@ class SmokeSafetyTests(unittest.TestCase):
             self.assertEqual(call[0][0][-6:], ['delay', '7.5ms', 'loss', '1%', 'rate', '5Gbit'])
 
     def test_handover_uses_one_complete_qdisc_per_endpoint(self):
+        checked_commands = []
         def output(remote, command):
             if 'birdc show protocols' in command:
                 return ['kernel1 Kernel master4 up now\n']
             if 'ip -4 route show' in command:
                 return []
             return ['eth2@if42\n']
-        with patch.object(sn_utils, 'sn_remote_cmd', side_effect=output) as call:
+        def checked(remote, command):
+            checked_commands.append(command)
+            return []
+        with patch.object(sn_utils, 'sn_remote_cmd', side_effect=output), \
+                patch.object(sn_utils, 'sn_remote_checked_cmd', side_effect=checked):
             sn_utils.sn_establish_new_GSL(['node'] * 27, [['6'] * 27] * 27,
                                         25, 5, 1, 7, 27, object())
-        qdiscs = [c[0][1] for c in call.call_args_list if 'tc qdisc add' in c[0][1]]
+        qdiscs = [c for c in checked_commands if 'tc qdisc replace' in c]
         self.assertEqual(len(qdiscs), 2)
-        self.assertTrue(all('delay 6ms loss 1% rate 5Gbit' in c for c in qdiscs))
+        self.assertTrue(all('netem delay 6ms loss 1% rate 5Gbit' in c
+                            for c in qdiscs))
 
     def test_handover_pauses_both_exports_before_connect_and_restores_on_error(self):
         commands = []
@@ -132,7 +138,8 @@ class SmokeSafetyTests(unittest.TestCase):
             return ['eth2@if42\n']
         ids = ['sat'] * 27
         ids[26] = 'ground'
-        with patch.object(sn_utils, 'sn_remote_cmd', side_effect=output):
+        with patch.object(sn_utils, 'sn_remote_cmd', side_effect=output), \
+                patch.object(sn_utils, 'sn_remote_checked_cmd', return_value=[]):
             with self.assertRaisesRegex(RuntimeError, 'connect failed'):
                 sn_utils.sn_establish_new_GSL(ids, [['6'] * 27] * 27,
                                             25, 5, 1, 7, 27, object())
@@ -171,6 +178,34 @@ class SmokeSafetyTests(unittest.TestCase):
             lines = LocalExecutor(directory).run("echo 'Network is unreachable' >&2; exit 2",
                                                  allowed_returncodes=(0, 1, 2))
             self.assertEqual(lines, ['Network is unreachable\n'])
+
+
+class TopologyReportTests(unittest.TestCase):
+    def test_topology_report_accepts_duration_matched_300_matrix_run(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            topology = root / 'topology'
+            delay = topology / 'delay'
+            delay.mkdir(parents=True)
+            matrix = ','.join(['0'] * 27)
+            contents = '\n'.join([matrix] * 27) + '\n'
+            for second in range(1, 301):
+                (delay / '{}.txt'.format(second)).write_text(contents)
+
+            report = topology_report(root, topology, expected_matrix_count=300)
+
+            self.assertEqual(300, report['matrix_count'])
+            self.assertTrue((root / 'topology.json').is_file())
+            with self.assertRaisesRegex(RuntimeError,
+                                        'expected 100 topology delay matrices, found 300'):
+                topology_report(root, topology)
+
+    def test_topology_report_rejects_nonpositive_expected_count(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'topology' / 'delay').mkdir(parents=True)
+            with self.assertRaisesRegex(ValueError, 'positive integer'):
+                topology_report(root, root / 'topology', expected_matrix_count=0)
 
 
 if __name__ == '__main__':

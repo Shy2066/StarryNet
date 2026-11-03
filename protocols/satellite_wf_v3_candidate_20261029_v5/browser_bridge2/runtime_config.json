@@ -1,0 +1,35 @@
+{
+  "batch_root": "/home/shy/Project/StarryNet/artifacts/e_browser_tor_pilot_v2_2_runtime_rebase_20261026",
+  "bridge_file": "/home/shy/Project/StarryNet/protocols/satellite_wf_v3_candidate_20261029_v5/browser_bridge2/webtunnel-bridge2.txt",
+  "browser_dir": "/home/shy/Project/StarryNet/artifacts/e_browser_tor_pilot_v2_2_runtime_rebase_20261026/assets/tor-browser",
+  "cleanup_grace_seconds": 110,
+  "collector_timeout_seconds": 1500,
+  "collector_wrapper": "/home/shy/Project/StarryNet/tools/run_e_browser_site_sample_v2.py",
+  "concurrency": 1,
+  "coordinator_entrypoint": "/home/shy/Project/StarryNet/tools/run_e_browser_pilot_v2_2.py",
+  "data_domain": "E_BROWSER_TOR_V2",
+  "expert_bundle": "/home/shy/Project/StarryNet/artifacts/bridge_preflight/assets/15.0.25/bundle",
+  "geckodriver": "/home/shy/Project/StarryNet/artifacts/e_browser_tor_pilot_v2_2_runtime_rebase_20261026/assets/geckodriver",
+  "helper_image": "constellation-p2-tor:0.4.9.11",
+  "helper_image_id": "sha256:168196aef4661dbe43899fb144428a1c68ccb0391a0bb5520c63d606464aa27c",
+  "protocol_id": "starrynet-e-browser-tor-v5-browser_bridge2",
+  "python_executable": "/home/shy/anaconda3/envs/starrynet/bin/python",
+  "python_site_packages": "/home/shy/Project/StarryNet/artifacts/e_browser_tor_pilot_v2_2_runtime_rebase_20261026/assets/python-site-packages",
+  "runner": "/home/shy/Project/StarryNet/tools/tor_browser_starrynet_smoke_v2.py",
+  "runner_flags": [
+    "--pin-tor-entry-bridge-diagnostic"
+  ],
+  "runner_wall_clock_seconds": 1500,
+  "runtime_freeze_path": "/home/shy/Project/StarryNet/protocols/satellite_wf_v3_candidate_20261029_v5/browser_bridge2/freeze_hashes.json",
+  "runtime_rebase": {
+    "parent_runtime_config_path": "/home/shy/Project/StarryNet/artifacts/e_browser_tor_pilot_v2_2_20261021/protocol/runtime_config.json",
+    "parent_runtime_config_sha256": "8fe50e836ee01b16e85f3e0c884e9d24915a7fdc34b3e10a5793cb38f6dd79f1",
+    "parent_runtime_freeze_path": "/home/shy/Project/StarryNet/artifacts/e_browser_tor_pilot_v2_2_20261021/protocol/freeze_hashes.json",
+    "parent_runtime_freeze_sha256": "672a5677501736ce64aaa59be89b30f28a41fbd915eb696b21f05a5cb22b6bd2",
+    "reason": "Original Browser/Tor and Python site-packages trees were unavailable; separately versioned assets were restored or reconstructed and re-frozen without modifying the parent freeze."
+  },
+  "runtime_variant_id": "browser-tor-runtime-v5-browser_bridge2",
+  "source_list_sha256": "f2fe92cf403e8dde9323d0f5b54ba09478d6b31fcb09e1b8a509b2abc7f3beea",
+  "tor_bootstrap_timeout_seconds": 600,
+  "tor_ready_timeout_seconds": 780
+}

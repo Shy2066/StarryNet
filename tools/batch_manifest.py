@@ -11,8 +11,10 @@ import argparse
 from datetime import datetime, timezone
 import hashlib
 import json
+import os
 from pathlib import Path
 import shlex
+import stat
 import subprocess
 import sys
 import uuid
@@ -43,15 +45,96 @@ def sha256(path):
     return digest.hexdigest()
 
 
+def sha256_tree(path):
+    root = Path(path)
+    digest = hashlib.sha256()
+    for current, directories, files in os.walk(str(root), followlinks=False):
+        directories.sort()
+        files.sort()
+        current_path = Path(current)
+        for name in directories:
+            item = current_path / name
+            relative = item.relative_to(root).as_posix().encode("utf-8")
+            if item.is_symlink():
+                digest.update(b"L\0" + relative + b"\0")
+                digest.update(os.readlink(str(item)).encode("utf-8") + b"\0")
+            else:
+                digest.update(b"D\0" + relative + b"\0")
+                digest.update(("{:o}".format(
+                    stat.S_IMODE(item.lstat().st_mode))).encode("ascii") + b"\0")
+        for name in files:
+            item = current_path / name
+            relative = item.relative_to(root).as_posix().encode("utf-8")
+            if item.is_symlink():
+                digest.update(b"L\0" + relative + b"\0")
+                digest.update(os.readlink(str(item)).encode("utf-8") + b"\0")
+                if item.is_file():
+                    digest.update(bytes.fromhex(sha256(item)))
+            elif item.is_file():
+                digest.update(b"F\0" + relative + b"\0")
+                digest.update(("{:o}".format(
+                    stat.S_IMODE(item.lstat().st_mode))).encode("ascii") + b"\0")
+                digest.update(bytes.fromhex(sha256(item)))
+    return digest.hexdigest()
+
+
+def sha256_path(path):
+    target = Path(path)
+    if target.is_file():
+        return sha256(target)
+    if target.is_dir():
+        return sha256_tree(target)
+    return None
+
+
+def validate_freeze(root, manifest):
+    freeze_path = Path(root) / "protocol" / "freeze_hashes.json"
+    if not freeze_path.is_file():
+        return ["protocol freeze_hashes.json is missing"]
+    try:
+        freeze = read_json(freeze_path)
+    except Exception as exc:
+        return ["protocol freeze_hashes.json is unreadable: " + str(exc)]
+    errors = []
+    hashes = freeze.get("hashes", {})
+    if not hashes:
+        errors.append("protocol freeze contains no artifact hashes")
+    for name, item in hashes.items():
+        path = Path(item.get("path", ""))
+        actual = sha256_path(path)
+        if actual is None or actual != item.get("sha256"):
+            errors.append("frozen artifact hash changed or is missing: " + name)
+    metadata = manifest.get("protocol_metadata", {})
+    expected_protocol_id = metadata.get("protocol_id")
+    if (freeze.get("protocol_id") != expected_protocol_id
+            or freeze.get("planned_sample_count") != len(manifest.get("samples", []))):
+        errors.append("protocol freeze identity or planned sample count differs from manifest")
+    expected_image_id = metadata.get("runtime_assets", {}).get("helper_image_id")
+    if expected_image_id and freeze.get("helper_image_id") != expected_image_id:
+        errors.append("frozen helper image ID differs from protocol metadata")
+    return errors
+
+
+def requires_protocol_freeze(manifest):
+    protocol_id = str(manifest.get("protocol_metadata", {}).get("protocol_id", ""))
+    return protocol_id.startswith("starrynet-e-browser-tor-")
+
+
 def sample_rows(pages, repeats, domain):
     rows = []
-    for page in pages:
-        page_id = str(page["page_id"])
-        for repetition in range(1, repeats + 1):
+    for repetition in range(1, repeats + 1):
+        for page in pages:
+            page_id = str(page["page_id"])
             sample_id = "{0}-{1}-r{2:03d}".format(domain, page_id, repetition)
             rows.append({"sample_id": sample_id, "domain": domain,
                          "page_id": page_id, "url": str(page["url"]),
-                         "repetition": repetition, "target": "independent_sample"})
+                         "label": str(page.get("label", page_id)),
+                         "class_label": str(page.get(
+                             "class_label", page.get("label", page_id))),
+                         "source_rank": page.get("source_rank"),
+                         "source_domain": page.get("source_domain"),
+                         "repetition": repetition,
+                         "target": "independent_sample"})
     return rows
 
 
@@ -72,6 +155,10 @@ def load_pages(path):
         seen.add(page_id)
         result.append({"page_id": page_id, "url": str(page["url"]),
                        "label": page.get("label", page_id),
+                       "class_label": str(page.get(
+                           "class_label", page.get("label", page_id))),
+                       "source_rank": page.get("source_rank"),
+                       "source_domain": page.get("source_domain"),
                        "expected_marker": page.get("expected_marker")})
     return result
 
@@ -93,10 +180,25 @@ def cmd_plan(args):
         "retry_limit": args.retry_limit,
         "sample_count": len(rows),
         "samples": rows,
+        "protocol_metadata": (read_json(args.protocol_metadata)
+                              if args.protocol_metadata else {}),
         "semantic_policy": {
             "E_is_simulation_and_not_automatically_S": True,
+            "E_BROWSER_TOR_is_separate_from_controlled_UDP_replay": True,
+            "class_label_namespace": ("E_BROWSER_TOR_V1_1"
+                                      if args.domain == "E_BROWSER_TOR_V1_1"
+                                      else "E_BROWSER_TOR_V1_2"
+                                      if args.domain == "E_BROWSER_TOR_V1_2"
+                                      else "E_BROWSER_TOR_V1_3"
+                                      if args.domain == "E_BROWSER_TOR_V1_3"
+                                      else "E_BROWSER_TOR_V1_4"
+                                      if args.domain == "E_BROWSER_TOR_V1_4"
+                                      else "E_BROWSER_TOR_v1"
+                                      if args.domain == "E_BROWSER_TOR"
+                                      else args.domain),
             "fresh_profile_per_attempt": True,
             "concurrency": 1,
+            "sample_order": "round-robin by repetition, then page order",
             "failed_attempts_are_retained": True,
             "retry_does_not_increase_independent_sample_count": True,
         },
@@ -120,6 +222,26 @@ def validate_manifest(manifest):
         errors.append("sample_count does not match samples")
     if int(manifest.get("repetitions_per_page", 0)) < 1:
         errors.append("repetitions_per_page must be positive")
+    pages = manifest.get("pages", [])
+    repeats = int(manifest.get("repetitions_per_page", 0) or 0)
+    if len(samples) != len(pages) * repeats:
+        errors.append("sample_count does not equal pages × repetitions_per_page")
+    page_by_id = {str(page.get("page_id")): page for page in pages
+                  if isinstance(page, dict) and page.get("page_id")}
+    counts = {page_id: 0 for page_id in page_by_id}
+    for row in samples:
+        page_id = str(row.get("page_id", ""))
+        page = page_by_id.get(page_id)
+        if page is None:
+            errors.append("sample references unknown page_id: " + page_id)
+            continue
+        counts[page_id] += 1
+        if row.get("url") != page.get("url"):
+            errors.append("sample URL differs from page manifest: " + page_id)
+        if str(row.get("class_label")) != str(page.get("class_label")):
+            errors.append("sample class_label differs from page manifest: " + page_id)
+    if any(count != repeats for count in counts.values()):
+        errors.append("each page must have exactly repetitions_per_page samples")
     return errors
 
 
@@ -201,6 +323,8 @@ def successful_record(record, root):
 def cmd_preflight(args):
     manifest = read_json(args.manifest)
     errors = validate_manifest(manifest)
+    if requires_protocol_freeze(manifest):
+        errors.extend(validate_freeze(Path(args.manifest).resolve().parent, manifest))
     result = {"manifest": str(Path(args.manifest).resolve()), "passed": not errors,
               "errors": errors, "sample_count": len(manifest.get("samples", [])),
               "concurrency": manifest.get("semantic_policy", {}).get("concurrency")}
@@ -212,6 +336,8 @@ def cmd_run(args):
     manifest_path = Path(args.manifest).resolve()
     manifest = read_json(manifest_path)
     errors = validate_manifest(manifest)
+    if requires_protocol_freeze(manifest):
+        errors.extend(validate_freeze(manifest_path.parent, manifest))
     if errors:
         raise SystemExit("Manifest preflight failed: " + "; ".join(errors))
     root = Path(args.work_dir or manifest_path.parent).resolve()
@@ -245,8 +371,10 @@ def cmd_run(args):
                 command = [part.format(**values) for part in template]
                 started = utc_now()
                 try:
-                    completed = subprocess.run(command, cwd=str(root), text=True,
-                                               stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                    completed = subprocess.run(command, cwd=str(root),
+                                               universal_newlines=True,
+                                               stdout=subprocess.PIPE,
+                                               stderr=subprocess.PIPE,
                                                timeout=args.timeout)
                     returncode = completed.returncode
                     stdout = completed.stdout
@@ -262,7 +390,12 @@ def cmd_run(args):
                 result = parse_last_json(stdout) or {}
                 record = {"schema_version": SCHEMA_VERSION, "run_id": manifest["run_id"],
                           "sample_id": sample["sample_id"], "attempt_id": attempt_id,
-                          "page_id": sample["page_id"], "repetition": sample["repetition"],
+                          "page_id": sample["page_id"],
+                          "class_label": sample.get("class_label"),
+                          "label": sample.get("label"),
+                          "source_rank": sample.get("source_rank"),
+                          "source_domain": sample.get("source_domain"),
+                          "repetition": sample["repetition"],
                           "started_utc": started, "ended_utc": utc_now(),
                           "returncode": returncode, "stdout_tail": stdout[-4000:],
                           "stderr_tail": stderr[-4000:], **result}
@@ -332,11 +465,17 @@ def main():
     # option.  Sharing the same argparse destination makes every `run` call
     # fall through to `verify`, because the collector string overwrites the
     # value "run".
-    sub = parser.add_subparsers(dest="subcommand", required=True)
+    # Python 3.6's argparse does not accept required= on add_subparsers.
+    sub = parser.add_subparsers(dest="subcommand")
     plan = sub.add_parser("plan")
     plan.add_argument("--pages", type=Path, required=True)
     plan.add_argument("--output", type=Path, required=True)
-    plan.add_argument("--domain", default="E", choices=("F", "S", "E"))
+    plan.add_argument("--domain", default="E",
+                      choices=("F", "S", "E", "E_BROWSER_TOR",
+                               "E_BROWSER_TOR_V1_1", "E_BROWSER_TOR_V1_2",
+                               "E_BROWSER_TOR_V1_3", "E_BROWSER_TOR_V1_4"))
+    plan.add_argument("--protocol-metadata", type=Path,
+                      help="JSON metadata frozen alongside pages and samples")
     plan.add_argument("--repeats", type=int, default=10)
     plan.add_argument("--retry-limit", type=int, default=1)
     plan.add_argument("--run-id")
@@ -346,7 +485,7 @@ def main():
     run = sub.add_parser("run")
     run.add_argument("--manifest", type=Path, required=True)
     run.add_argument("--command", dest="collector_command", required=True,
-                     help="argv template; supports {sample_id}, {attempt_id}, {page_id}, {url}, {output_dir}")
+                     help="argv template; supports sample/page/label/class/URL/source/output placeholders")
     run.add_argument("--work-dir", type=Path)
     run.add_argument("--records", type=Path)
     run.add_argument("--resume", action="store_true")
@@ -356,6 +495,8 @@ def main():
     verify.add_argument("--work-dir", type=Path)
     verify.add_argument("--records", type=Path)
     args = parser.parse_args()
+    if not args.subcommand:
+        parser.error("a subcommand is required")
     if args.subcommand == "plan":
         if args.repeats < 1 or args.retry_limit < 0:
             raise SystemExit("repeats must be positive and retry-limit nonnegative")

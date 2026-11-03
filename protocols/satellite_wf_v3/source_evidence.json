@@ -1,0 +1,2128 @@
+{
+  "candidate_sources": [
+    {
+      "path": "/home/shy/Project/Spacesec2024/data_colection_code/data_collection/Master_PC/webpages.py",
+      "relation_to_current_F_S_files": "unverified",
+      "sha256": "868af3d707e9fb0e70ff402f1624f90124cb60e94c6375cf467a21ad6c468a1a"
+    },
+    {
+      "path": "/home/shy/Project/Spacesec2024/data_colection_code/data_collection/Master_PC/tranco.csv",
+      "relation_to_current_F_S_files": "unverified",
+      "sha256": "f2fe92cf403e8dde9323d0f5b54ba09478d6b31fcb09e1b8a509b2abc7f3beea"
+    },
+    {
+      "path": "/home/shy/Project/Spacesec2024/data_colection_code/data_collection/Data_Collecting_PC/app_to_collect_data.py",
+      "relation_to_current_F_S_files": "unverified",
+      "sha256": "d358a49768f8f5788e2eb494a38860229955a6917220495bd2d92ec1e741bfd1"
+    },
+    {
+      "path": "/home/shy/Project/Spacesec2024/data_colection_code/data_collection/Master_PC/collector.py",
+      "relation_to_current_F_S_files": "unverified",
+      "sha256": "791f0ca87afa3fdcc56d35ee9ca8005b75d2a80c1409adc63278691c6f618b1a"
+    },
+    {
+      "path": "/home/shy/Project/Spacesec2024/spacesec2024-15-paper.pdf",
+      "relation_to_current_F_S_files": "unverified",
+      "sha256": "8cfa408fdcad7f1afeb186a4665bd20f6c0bbe317afac5a6a6a2bd477b6a89c7"
+    },
+    {
+      "path": "/home/shy/Project/Tik_Tok/DL_Experiments/data_utils.py",
+      "relation_to_current_F_S_files": "unverified",
+      "sha256": "8566ff891e429b44483cb199416f0b7b97b60c5d9fb6ae7e73eef0a818fb0f00"
+    },
+    {
+      "path": "/home/shy/Project/Tik_Tok/README.md",
+      "relation_to_current_F_S_files": "unverified",
+      "sha256": "0395771ff4f2fe2517c54d14b39da2ce1c3f657b4ba9392bbbc88e0d44fd26d4"
+    },
+    {
+      "path": "/home/shy/Project/dataset/tor_fiber.zip",
+      "relation_to_current_F_S_files": "verified",
+      "sha256": "3065c8bf551ac461c3fff0af7932a05b5487901f080155be5e3fe1d584061410"
+    },
+    {
+      "path": "/home/shy/Project/dataset/tor_starlink.zip",
+      "relation_to_current_F_S_files": "verified",
+      "sha256": "a63e8b0d9ab4600705a538737d793d037974a0d70316881f1b91872b0cd6f7b9"
+    },
+    {
+      "path": "/home/shy/Project/StarryNet/artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+      "relation_to_current_F_S_files": "user_attested",
+      "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+    },
+    {
+      "path": "/home/shy/Project/Spacesec2024/data_colection_code/README.md",
+      "relation_to_current_F_S_files": "unverified",
+      "sha256": "c68d483130c606a383b21187aec8f72340ae7b7d896e0d8929569044e72c70f9"
+    },
+    {
+      "path": "/home/shy/Project/Spacesec2024/data_colection_code/data_collection/Data_Collecting_PC/Dockerfile",
+      "relation_to_current_F_S_files": "unverified",
+      "sha256": "9ea59bcdd1db0beebb01ff14f18971b8a23d262e73bb5181190e0012a60ccb1b"
+    }
+  ],
+  "domains": {
+    "F": {
+      "class_count": 75,
+      "class_to_url": {
+        "0": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://adobe.com/"
+        },
+        "1": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://amazon.co.jp/"
+        },
+        "10": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://booking.com/"
+        },
+        "11": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://cdc.gov/"
+        },
+        "12": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://cnn.com/"
+        },
+        "13": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://digicert.com/"
+        },
+        "14": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://dnsmadeeasy.com/"
+        },
+        "15": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://doubleclick.net/"
+        },
+        "16": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://dropbox.com/"
+        },
+        "17": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://ebay.com/"
+        },
+        "18": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://etsy.com/"
+        },
+        "19": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://facebook.com/"
+        },
+        "2": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://amazon.in/"
+        },
+        "20": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://fandom.com/"
+        },
+        "21": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://fastly.net/"
+        },
+        "22": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://fbcdn.net/"
+        },
+        "23": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://flickr.com/"
+        },
+        "24": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://force.com/"
+        },
+        "25": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://gandi.net/"
+        },
+        "26": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://github.com/"
+        },
+        "27": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://github.io/"
+        },
+        "28": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://google-analytics.com/"
+        },
+        "29": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://googledomains.com/"
+        },
+        "3": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://apache.org/"
+        },
+        "30": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://icloud.com/"
+        },
+        "31": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://instagram.com/"
+        },
+        "32": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://intuit.com/"
+        },
+        "33": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://issuu.com/"
+        },
+        "34": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://linode.com/"
+        },
+        "35": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://live.com/"
+        },
+        "36": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://mail.ru/"
+        },
+        "37": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://microsoft.com/"
+        },
+        "38": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://mozilla.org/"
+        },
+        "39": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://msn.com/"
+        },
+        "4": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://apple.com/"
+        },
+        "40": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://naver.com/"
+        },
+        "41": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://netflix.com/"
+        },
+        "42": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://nytimes.com/"
+        },
+        "43": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://office365.com/"
+        },
+        "44": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://opera.com/"
+        },
+        "45": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://oracle.com/"
+        },
+        "46": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://outlook.com/"
+        },
+        "47": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://paypal.com/"
+        },
+        "48": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://pornhub.com/"
+        },
+        "49": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://reddit.com/"
+        },
+        "5": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://azure.com/"
+        },
+        "50": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://reuters.com/"
+        },
+        "51": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://salesforce.com/"
+        },
+        "52": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://salesforceliveagent.com/"
+        },
+        "53": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://skype.com/"
+        },
+        "54": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://soundcloud.com/"
+        },
+        "55": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://sourceforge.net/"
+        },
+        "56": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://spotify.com/"
+        },
+        "57": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://stackoverflow.com/"
+        },
+        "58": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://t.me/"
+        },
+        "59": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://telegram.org/"
+        },
+        "6": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://bbc.co.uk/"
+        },
+        "60": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://theguardian.com/"
+        },
+        "61": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://tiktok.com/"
+        },
+        "62": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://tumblr.com/"
+        },
+        "63": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://twitch.tv/"
+        },
+        "64": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://vimeo.com/"
+        },
+        "65": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://w3.org/"
+        },
+        "66": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://weebly.com/"
+        },
+        "67": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://wellsfargo.com/"
+        },
+        "68": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://whatsapp.com/"
+        },
+        "69": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://wikimedia.org/"
+        },
+        "7": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://bbc.com/"
+        },
+        "70": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://wikipedia.org/"
+        },
+        "71": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://xvideos.com/"
+        },
+        "72": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://yahoo.co.jp/"
+        },
+        "73": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://youtube.com/"
+        },
+        "74": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://zemanta.com/"
+        },
+        "8": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://bing.com/"
+        },
+        "9": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://bit.ly/"
+        }
+      },
+      "sample_count": 6000,
+      "sample_root": "dataset/tor_fiber",
+      "samples_per_class": 80,
+      "semantics": {
+        "browser_tor_versions": {
+          "evidence": [],
+          "status": "unknown"
+        },
+        "cache_navigation": {
+          "evidence": [],
+          "status": "unknown"
+        },
+        "capture_point_filter": {
+          "evidence": [],
+          "status": "unknown"
+        },
+        "direction": {
+          "evidence": [],
+          "status": "unknown"
+        },
+        "packet_unit": {
+          "evidence": [],
+          "status": "unknown"
+        },
+        "session_provenance": {
+          "evidence": [],
+          "status": "unknown"
+        },
+        "time_origin": {
+          "evidence": [],
+          "status": "unknown"
+        },
+        "window": {
+          "evidence": [],
+          "status": "unknown"
+        }
+      }
+    },
+    "S": {
+      "class_count": 75,
+      "class_to_url": {
+        "0": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://adobe.com/"
+        },
+        "1": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://amazon.co.jp/"
+        },
+        "10": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://booking.com/"
+        },
+        "11": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://cdc.gov/"
+        },
+        "12": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://cnn.com/"
+        },
+        "13": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://digicert.com/"
+        },
+        "14": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://dnsmadeeasy.com/"
+        },
+        "15": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://doubleclick.net/"
+        },
+        "16": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://dropbox.com/"
+        },
+        "17": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://ebay.com/"
+        },
+        "18": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://etsy.com/"
+        },
+        "19": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://facebook.com/"
+        },
+        "2": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://amazon.in/"
+        },
+        "20": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://fandom.com/"
+        },
+        "21": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://fastly.net/"
+        },
+        "22": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://fbcdn.net/"
+        },
+        "23": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://flickr.com/"
+        },
+        "24": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://force.com/"
+        },
+        "25": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://gandi.net/"
+        },
+        "26": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://github.com/"
+        },
+        "27": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://github.io/"
+        },
+        "28": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://google-analytics.com/"
+        },
+        "29": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://googledomains.com/"
+        },
+        "3": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://apache.org/"
+        },
+        "30": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://icloud.com/"
+        },
+        "31": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://instagram.com/"
+        },
+        "32": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://intuit.com/"
+        },
+        "33": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://issuu.com/"
+        },
+        "34": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://linode.com/"
+        },
+        "35": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://live.com/"
+        },
+        "36": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://mail.ru/"
+        },
+        "37": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://microsoft.com/"
+        },
+        "38": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://mozilla.org/"
+        },
+        "39": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://msn.com/"
+        },
+        "4": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://apple.com/"
+        },
+        "40": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://naver.com/"
+        },
+        "41": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://netflix.com/"
+        },
+        "42": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://nytimes.com/"
+        },
+        "43": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://office365.com/"
+        },
+        "44": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://opera.com/"
+        },
+        "45": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://oracle.com/"
+        },
+        "46": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://outlook.com/"
+        },
+        "47": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://paypal.com/"
+        },
+        "48": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://pornhub.com/"
+        },
+        "49": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://reddit.com/"
+        },
+        "5": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://azure.com/"
+        },
+        "50": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://reuters.com/"
+        },
+        "51": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://salesforce.com/"
+        },
+        "52": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://salesforceliveagent.com/"
+        },
+        "53": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://skype.com/"
+        },
+        "54": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://soundcloud.com/"
+        },
+        "55": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://sourceforge.net/"
+        },
+        "56": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://spotify.com/"
+        },
+        "57": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://stackoverflow.com/"
+        },
+        "58": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://t.me/"
+        },
+        "59": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://telegram.org/"
+        },
+        "6": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://bbc.co.uk/"
+        },
+        "60": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://theguardian.com/"
+        },
+        "61": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://tiktok.com/"
+        },
+        "62": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://tumblr.com/"
+        },
+        "63": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://twitch.tv/"
+        },
+        "64": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://vimeo.com/"
+        },
+        "65": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://w3.org/"
+        },
+        "66": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://weebly.com/"
+        },
+        "67": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://wellsfargo.com/"
+        },
+        "68": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://whatsapp.com/"
+        },
+        "69": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://wikimedia.org/"
+        },
+        "7": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://bbc.com/"
+        },
+        "70": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://wikipedia.org/"
+        },
+        "71": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://xvideos.com/"
+        },
+        "72": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://yahoo.co.jp/"
+        },
+        "73": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://youtube.com/"
+        },
+        "74": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://zemanta.com/"
+        },
+        "8": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://bing.com/"
+        },
+        "9": {
+          "evidence": [
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+              "sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d"
+            },
+            {
+              "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+              "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+            }
+          ],
+          "url": "http://bit.ly/"
+        }
+      },
+      "sample_count": 6000,
+      "sample_root": "dataset/tor_starlink",
+      "samples_per_class": 80,
+      "semantics": {
+        "browser_tor_versions": {
+          "evidence": [],
+          "status": "unknown"
+        },
+        "cache_navigation": {
+          "evidence": [],
+          "status": "unknown"
+        },
+        "capture_point_filter": {
+          "evidence": [],
+          "status": "unknown"
+        },
+        "direction": {
+          "evidence": [],
+          "status": "unknown"
+        },
+        "packet_unit": {
+          "evidence": [],
+          "status": "unknown"
+        },
+        "session_provenance": {
+          "evidence": [],
+          "status": "unknown"
+        },
+        "time_origin": {
+          "evidence": [],
+          "status": "unknown"
+        },
+        "window": {
+          "evidence": [],
+          "status": "unknown"
+        }
+      }
+    }
+  },
+  "evidence_root": "../..",
+  "published_release_candidate": {
+    "candidate_dockerfile_sha256": "9ea59bcdd1db0beebb01ff14f18971b8a23d262e73bb5181190e0012a60ccb1b",
+    "candidate_site_list_path": "artifacts/reports/satellite_wf_v3_20261021/paper_site_list_candidate.json",
+    "candidate_site_list_sha256": "df56a250dcb3c8e9a15fd93fd7865e046539d16ce3c4bae948373eaeee93de6d",
+    "collection_readme_sha256": "c68d483130c606a383b21187aec8f72340ae7b7d896e0d8929569044e72c70f9",
+    "doi": "10.5281/zenodo.10641853",
+    "paper_path": "/home/shy/Project/Spacesec2024/spacesec2024-15-paper.pdf",
+    "paper_sha256": "8cfa408fdcad7f1afeb186a4665bd20f6c0bbe317afac5a6a6a2bd477b6a89c7",
+    "record_url": "https://zenodo.org/records/10641853",
+    "release_byte_binding": "unverified",
+    "release_to_current_trace_binding": "user_attested",
+    "user_attestation_sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+  },
+  "residual_limitations": [
+    "The current local F/S files are byte-identical to separate local archives, but those archives were not bytewise compared with the public WFdata75x80.zip.",
+    "The mapping from class IDs 0-74 to paper Appendix A domains is admitted by explicit user attestation, not a release-provided class map.",
+    "Original browser/Tor versions, cache/navigation state, capture point/filter, packet event unit, raw direction definition, time origin, access window, and session provenance remain unknown for these exact local files.",
+    "Training admission does not validate StarryNet scientific fidelity or establish similarity to real Starlink traffic."
+  ],
+  "schema_version": 1,
+  "training_admission_override": {
+    "attestation": {
+      "path": "artifacts/reports/satellite_wf_v3_20261021/dataset_identity_attestation.json",
+      "sha256": "29c26e36baa293d62d3207fccbdddc390079590c79e3ff492fc8cf9cd12997f8"
+    },
+    "mode": "user_attested_spacesec2024_dataset_identity"
+  }
+}

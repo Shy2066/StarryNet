@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "protocol_id": "starrynet-browser-tor-route-nat-v3",
+  "source_audit_sha256": "REPLACE_WITH_SHA256_OF_PASSED_SOURCE_AUDIT_JSON",
+  "artifact_root": ".",
+  "protocol_config": {
+    "path": "protocol/runtime_config.json",
+    "sha256": "REPLACE_WITH_SHA256_OF_FROZEN_CONFIG"
+  },
+  "samples": [
+    {
+      "sample_id": "REPLACE_WITH_UNIQUE_SAMPLE_ID",
+      "class_id": "REPLACE_WITH_AUDITED_CLASS_ID",
+      "site_url": "REPLACE_WITH_URL_FROM_AUDITED_CLASS_MAP",
+      "source_domain": "E",
+      "session_id": "REPLACE_WITH_CAPTURE_SESSION_ID",
+      "split_group_id": "REPLACE_WITH_INDEPENDENT_SESSION_GROUP",
+      "split": "train",
+      "protocol_config_sha256": "",
+      "class_mapping_sha256": "",
+      "network_scenario_id": "engineering_baseline",
+      "page_identity": {
+        "requested_url": "REPLACE_WITH_AUDITED_URL",
+        "final_url": "REPLACE_WITH_OBSERVED_FINAL_URL",
+        "canonical_url": "REPLACE_WITH_OBSERVED_FINAL_URL",
+        "http_status": null,
+        "access_challenge_detected": true
+      },
+      "tor_path": {
+        "target_stream_id": "",
+        "stream_status": "",
+        "circuit_id": "",
+        "stream_circuit_id": "",
+        "circuit_status": "",
+        "entry_fingerprint": "",
+        "middle_fingerprint": "",
+        "exit_fingerprint": ""
+      },
+      "network_path": {
+        "capture_interface": "wf-gre0",
+        "egress_interface": "B27-default",
+        "route_snapshot_count": 0,
+        "satellite_node_ids": []
+      },
+      "time_boundaries": {
+        "raw_capture_start_utc": "",
+        "raw_capture_start_monotonic": null,
+        "navigation_start_utc": "",
+        "navigation_start_monotonic": null,
+        "navigation_complete_utc": "",
+        "navigation_complete_monotonic": null,
+        "raw_capture_end_utc": "",
+        "raw_capture_end_monotonic": null,
+        "clock_anchor_utc": "",
+        "clock_anchor_monotonic": null,
+        "topology_start_seconds": null,
+        "topology_end_seconds": null
+      },
+      "browser_tor": {
+        "browser_version": "",
+        "tor_version": "",
+        "browser_tree_sha256": "",
+        "tor_binary_sha256": ""
+      },
+      "handover": {
+        "occurred": null,
+        "route_recovered": null,
+        "outage_start_monotonic": null,
+        "route_recovered_monotonic": null,
+        "interruption_ms": null
+      },
+      "gates": {
+        "target_identity_verified": false,
+        "target_page_success_verified": false,
+        "access_challenge_absent": false,
+        "tor_target_stream_verified": false,
+        "target_tor_circuit_three_hops_verified": false,
+        "route_nat_verified": false,
+        "bidirectional_satellite_route_verified": false,
+        "capture_interface_verified": false,
+        "capture_loss_zero": false,
+        "offloads_disabled_verified": false,
+        "pcap_trace_audit_passed": false,
+        "topology_events_recorded": false,
+        "actual_tor_path_recorded": false,
+        "capture_window_order_verified": false,
+        "clock_pair_verified": false,
+        "cleanup_verified": false
+      },
+      "artifacts": [
+        {"kind": "trace", "path": "samples/REPLACE/trace.tsv", "sha256": ""},
+        {"kind": "pcap", "path": "samples/REPLACE/capture.pcap", "sha256": ""},
+        {"kind": "sample_manifest", "path": "samples/REPLACE/sample_manifest.json", "sha256": ""},
+        {"kind": "packet_audit", "path": "samples/REPLACE/packet_audit.json", "sha256": ""},
+        {"kind": "topology_events", "path": "samples/REPLACE/topology_events.jsonl", "sha256": ""},
+        {"kind": "route_events", "path": "samples/REPLACE/route_events.jsonl", "sha256": ""}
+      ]
+    }
+  ]
+}

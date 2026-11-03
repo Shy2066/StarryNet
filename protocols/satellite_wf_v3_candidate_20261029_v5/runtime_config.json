@@ -1,0 +1,161 @@
+{
+  "candidate_protocol_id": "starrynet-browser-tor-route-nat-v3-v5-20261029",
+  "capture": {
+    "clock": "monotonic",
+    "derive_trace_from_navigation_markers": true,
+    "preserve_raw_trace": true,
+    "require_zero_kernel_capture_drops": true,
+    "retain_pcap_guard_seconds": 5,
+    "tso_gso_gro_lro": "disable_and_verify_on_capture_interface"
+  },
+  "data_domain": "E_BROWSER_TOR_V3",
+  "link_profiles": {
+    "dynamic_runtime_integration": "optional_StarryNet_link_profile_api",
+    "engineering_baseline": {
+      "inter_satellite": {
+        "a_to_b": {
+          "extra_one_way_delay_ms": 0,
+          "jitter_ms": 0,
+          "loss_percent": 0,
+          "queue_packets": 1000,
+          "rate_mbps": 5000
+        },
+        "b_to_a": {
+          "extra_one_way_delay_ms": 0,
+          "jitter_ms": 0,
+          "loss_percent": 0,
+          "queue_packets": 1000,
+          "rate_mbps": 5000
+        }
+      },
+      "satellite_ground": {
+        "ground_to_satellite": {
+          "extra_one_way_delay_ms": 0,
+          "jitter_ms": 0,
+          "loss_percent": 0,
+          "queue_packets": 1000,
+          "rate_mbps": 5000
+        },
+        "satellite_to_ground": {
+          "extra_one_way_delay_ms": 0,
+          "jitter_ms": 0,
+          "loss_percent": 0,
+          "queue_packets": 1000,
+          "rate_mbps": 5000
+        }
+      },
+      "scientific_calibration": false
+    },
+    "sensitivity_profiles": {}
+  },
+  "network": {
+    "browser_proxy_environment": "unset",
+    "capture_interface": "wf-gre0",
+    "client_ground_station": 26,
+    "client_ipv6_policy": "disable_in_isolated_namespace",
+    "client_tunnel_address": "10.255.253.1/30",
+    "client_underlay_address": "9.26.26.10",
+    "egress_ground_station": 27,
+    "egress_interface": "B27-default",
+    "egress_tunnel_address": "10.255.253.2/30",
+    "egress_underlay_address": "9.27.27.10",
+    "fixed_object_endpoint": {
+      "address": "9.27.27.20",
+      "image": "lwsen/starlab_node:1.0",
+      "interface": "B27-default",
+      "network": "GS_27",
+      "object_name": "fixed-object.bin",
+      "object_size_bytes": 1048576,
+      "port": 18080
+    },
+    "mode": "gre_route_nat",
+    "tunnel_interface": "wf-gre0",
+    "tunnel_key": 1398228531
+  },
+  "pilot": {
+    "attempt_timeout_seconds": 1500,
+    "cleanup_grace_seconds": 120,
+    "diagnostic_wall_clock_seconds": 7200,
+    "hard_stop_utc": "2026-10-29T00:00:00Z",
+    "infrastructure_failure_policy": "pause_after_failure_and_allow_one_replanned_attempt",
+    "max_parallel_collectors": 1,
+    "no_new_attempt_after_utc": "2026-10-28T23:35:00Z",
+    "per_site_retry_limit": 1,
+    "samples_per_site": 10,
+    "site_count": 5,
+    "startup_probe_timeout_seconds": 900,
+    "tor_bootstrap_timeout_seconds": 600,
+    "tor_ready_timeout_seconds": 780,
+    "total_online_budget_seconds": 50400
+  },
+  "protocol_id": "starrynet-browser-tor-route-nat-v3",
+  "runtime_status": "network_profile_api_implemented_collector_not_connected",
+  "scenarios": [
+    {
+      "egress_mode": "direct",
+      "handover_policy": "not_applicable",
+      "id": "no_satellite_reference",
+      "interruption_measurement": "not_applicable",
+      "link_profile": "engineering_baseline",
+      "purpose": "fixed-object connectivity control only",
+      "satellite_route_required": false,
+      "topology_mode": "direct_reference",
+      "training_candidate": false,
+      "validation_stage": "fixed_object_transfer"
+    },
+    {
+      "egress_mode": "gre_route_nat",
+      "handover_policy": "must_not_occur",
+      "id": "static_satellite_path",
+      "interruption_measurement": "observe_route_gap_and_recovery",
+      "link_profile": "engineering_baseline",
+      "purpose": "fixed-object satellite path control",
+      "satellite_route_required": true,
+      "topology_mode": "static",
+      "training_candidate": false,
+      "validation_stage": "fixed_object_transfer"
+    },
+    {
+      "egress_mode": "gre_route_nat",
+      "handover_policy": "must_not_occur_during_capture_window",
+      "id": "dynamic_no_handover",
+      "interruption_measurement": "record_route_gap_if_observed",
+      "link_profile": "engineering_baseline",
+      "purpose": "dynamic satellite path control without a link handover in the capture window",
+      "satellite_route_required": true,
+      "topology_mode": "dynamic",
+      "training_candidate": true,
+      "validation_stage": "fixed_object_transfer_then_browser"
+    },
+    {
+      "egress_mode": "gre_route_nat",
+      "handover_policy": "must_occur_and_recover",
+      "id": "dynamic_handover",
+      "interruption_measurement": "measure_from_route_and_capture_events",
+      "link_profile": "engineering_baseline",
+      "purpose": "dynamic satellite path with observed handover and recovery",
+      "satellite_route_required": true,
+      "topology_mode": "dynamic",
+      "training_candidate": true,
+      "validation_stage": "fixed_object_transfer_then_browser"
+    }
+  ],
+  "schema_version": 1,
+  "topology": {
+    "config_file": "../../config.json",
+    "duration_seconds": 7200,
+    "ground_stations": 2,
+    "satellites": 25,
+    "update_interval_seconds": 10
+  },
+  "training": {
+    "accepted_source_audit_statuses": [
+      "passed",
+      "user_attested_with_unresolved_semantics"
+    ],
+    "require_attestation_for_unresolved_semantics": true,
+    "require_five_common_classes": true,
+    "require_session_grouped_split": true,
+    "scientific_fidelity_claim": false
+  }
+}

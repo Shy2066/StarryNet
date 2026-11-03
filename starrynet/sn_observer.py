@@ -2,11 +2,11 @@
 import math
 from sgp4.api import Satrec, WGS84
 from skyfield.api import load, wgs84, EarthSatellite
-from datetime import datetime
 import numpy as np
 import os
 
 from starrynet.sn_utils import *
+from datetime import datetime as _datetime
 
 _ = inf = 999999  # inf
 
@@ -19,7 +19,8 @@ class Observer():
     def __init__(self, file_path, configuration_file_path, inclination,
                  satellite_altitude, orbit_number, sat_number, duration,
                  antenna_number, GS_lat_long, antenna_inclination,
-                 intra_routing, hello_interval, AS):
+                 intra_routing, hello_interval, AS,
+                 simulation_start_utc="2022-01-01T01:00:00Z"):
         self.file_path = file_path
         self.configuration_file_path = configuration_file_path
         self.inclination = inclination
@@ -33,6 +34,7 @@ class Observer():
         self.intra_routing = intra_routing
         self.hello_interval = hello_interval
         self.AS = AS
+        self.simulation_start_utc = simulation_start_utc
 
     def access_P_L_shortest(self, sat_cbf, fac_cbf, fac_num, sat_num,
                             num_orbits, num_sats_per_orbit, duration, fac_ll,
@@ -234,8 +236,8 @@ class Observer():
             os.system("mkdir " + path + "/position")
 
         ts = load.timescale()
-        since = datetime(1949, 12, 31, 0, 0, 0)
-        start = datetime(2020, 1, 1, 0, 0, 0)
+        since = _datetime(1949, 12, 31, 0, 0, 0)
+        start = _datetime(2020, 1, 1, 0, 0, 0)
         epoch = (start - since).days
         inclination = self.inclination * 2 * np.pi / 360
         GM = 3.9860044e14
@@ -275,7 +277,8 @@ class Observer():
                     raan,  # nodeo: right ascension of ascending node (radians)
                 )
                 sat = EarthSatellite.from_satrec(satrec, ts)
-                cur = datetime(2022, 1, 1, 1, 0, 0)
+                cur = _datetime.strptime(self.simulation_start_utc,
+                                         "%Y-%m-%dT%H:%M:%SZ")
                 t_ts = ts.utc(*cur.timetuple()[:5],
                               range(duration))  # [:4]:minute，[:5]:second
                 geocentric = sat.at(t_ts)

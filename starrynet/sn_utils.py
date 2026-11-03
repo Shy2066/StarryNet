@@ -3,7 +3,7 @@ import threading
 import json
 import copy
 import argparse
-import os
+import datetime
 from time import sleep
 import time
 import numpy
@@ -11,16 +11,16 @@ import random
 import shlex
 from contextlib import contextmanager
 from starrynet.sn_thread import CheckedThread
+try:
+    from starrynet.sn_link_profile import (direction_for_nodes, netem_arguments,
+                                           profile_for, validate_profile)
+except ImportError:
+    from sn_link_profile import (direction_for_nodes, netem_arguments,
+                                 profile_for, validate_profile)
 """
 Starrynet utils that are used in sn_synchronizer
 author: Yangtao Deng (dengyt21@mails.tsinghua.edu.cn) and Zeqi Lai (zeqilai@tsinghua.edu.cn)
 """
-try:
-    import threading
-except ImportError:
-    os.system("pip3 install threading")
-    import threading
-
 try:
     import paramiko
 except ImportError:
@@ -32,20 +32,6 @@ try:
 except ImportError:
     os.system("pip3 install requests")
     import requests
-
-
-def get_right_satellite(current_sat_id, current_orbit_id, orbit_num):
-    if current_orbit_id == orbit_num - 1:
-        return [current_sat_id, 0]
-    else:
-        return [current_sat_id, current_orbit_id + 1]
-
-
-def get_down_satellite(current_sat_id, current_orbit_id, sat_num):
-    if current_sat_id == sat_num - 1:
-        return [0, current_orbit_id]
-    else:
-        return [current_sat_id + 1, current_orbit_id]
 
 
 def sn_load_file(path, GS_lat_long, argv=None):
@@ -61,6 +47,13 @@ def sn_load_file(path, GS_lat_long, argv=None):
     data['sat'] = table["# of satellites"]
     data['link'] = table["Satellite link"]
     data['duration'] = table["Duration (s)"]
+    data['simulation_start_utc'] = table.get(
+        "Simulation start UTC", "2022-01-01T01:00:00Z")
+    try:
+        datetime.datetime.strptime(data['simulation_start_utc'],
+                                   "%Y-%m-%dT%H:%M:%SZ")
+    except (TypeError, ValueError):
+        raise ValueError("Simulation start UTC must use YYYY-MM-DDTHH:MM:SSZ")
     data['ip'] = table["IP version"]
     data['intra_as_routing'] = table["Intra-AS routing"]
     data['inter_as_routing'] = table["Inter-AS routing"]
@@ -97,6 +90,8 @@ def sn_load_file(path, GS_lat_long, argv=None):
                         type=int,
                         default=data['update_time'])
     parser.add_argument('--duration', type=int, default=data['duration'])
+    parser.add_argument('--simulation_start_utc', type=str,
+                        default=data['simulation_start_utc'])
     parser.add_argument('--inter_routing',
                         type=str,
                         default=data['inter_as_routing'])
@@ -182,7 +177,7 @@ def sn_init_remote_ftp(transport):
 
 
 def sn_upload_orchestrater(remote_ftp, file_path):
-    for name in ('sn_orchestrater.py', 'sn_thread.py'):
+    for name in ('sn_orchestrater.py', 'sn_thread.py', 'sn_link_profile.py'):
         remote_ftp.put(os.path.join(os.path.dirname(__file__), name),
                        file_path + '/' + name)
 
@@ -193,6 +188,20 @@ def sn_remote_cmd(remote_ssh, cmd):
     stdin, stdout, stderr = remote_ssh.exec_command(cmd, get_pty=True)
     lines = stdout.readlines()
     return lines
+
+
+def sn_remote_checked_cmd(remote_ssh, cmd):
+    """Run a profile-bearing command and propagate its remote exit status."""
+    if hasattr(remote_ssh, 'run'):
+        return remote_ssh.run(cmd)
+    stdin, stdout, stderr = remote_ssh.exec_command(cmd, get_pty=True)
+    output = stdout.readlines()
+    error = stderr.readlines()
+    exit_status = stdout.channel.recv_exit_status()
+    if exit_status != 0:
+        raise RuntimeError("remote command failed ({}): {}{}".format(
+            exit_status, ''.join(error), ''.join(output)))
+    return output
 
 
 # A thread designed for initializing working directory.
@@ -229,19 +238,21 @@ class sn_init_directory_thread(CheckedThread):
 class sn_Node_Init_Thread(CheckedThread):
 
     def __init__(self, remote_ssh, docker_service_name, node_size,
-                 container_id_list, container_global_idx):
+                 container_id_list, container_global_idx,
+                 container_sysctls=None):
         CheckedThread.__init__(self)
         self.remote_ssh = remote_ssh
         self.docker_service_name = docker_service_name
         self.node_size = node_size
         self.container_global_idx = container_global_idx
         self.container_id_list = copy.deepcopy(container_id_list)
+        self.container_sysctls = list(container_sysctls or [])
 
     def run(self):
 
         # Reset docker environment.
         sn_reset_docker_env(self.remote_ssh, self.docker_service_name,
-                            self.node_size)
+                            self.node_size, self.container_sysctls)
         # Get container list in each machine.
         self.container_id_list = sn_get_container_info(self.remote_ssh)
         # Rename all containers with the global idx
@@ -265,7 +276,8 @@ def sn_delete_remote_network_bridge(remote_ssh):
         sn_remote_cmd(remote_ssh, 'docker network rm ' + shlex.quote(line.strip()))
 
 
-def sn_reset_docker_env(remote_ssh, docker_service_name, node_size):
+def sn_reset_docker_env(remote_ssh, docker_service_name, node_size,
+                        container_sysctls=None):
     print("Reset docker environment for constellation emulation ...")
     print("Remove legacy containers.")
     services = sn_remote_cmd(remote_ssh, "docker service ls --format '{{.Name}}'")
@@ -278,14 +290,32 @@ def sn_reset_docker_env(remote_ssh, docker_service_name, node_size):
     print("Remove legacy emulated ISLs.")
     sn_delete_remote_network_bridge(remote_ssh)
     print("Creating new containers...")
-    sn_remote_cmd(
-        remote_ssh, "docker service create --replicas " + str(node_size) +
-        " --name " + str(docker_service_name) +
-        " --cap-add ALL --no-resolve-image --detach=true lwsen/starlab_node:1.0 sleep infinity")
-    deadline = time.monotonic() + 90
-    while len(sn_get_container_info(remote_ssh)) != node_size:
-        if time.monotonic() > deadline:
-            raise RuntimeError('StarryNet containers did not become ready within 90 seconds')
+    service_command = ["docker", "service", "create", "--replicas",
+                       str(node_size), "--name", str(docker_service_name),
+                       "--cap-add", "ALL"]
+    for setting in container_sysctls or []:
+        service_command.extend(["--sysctl", str(setting)])
+    service_command.extend(["--no-resolve-image", "--detach=true",
+                            "lwsen/starlab_node:1.0", "sleep", "infinity"])
+    sn_remote_cmd(remote_ssh, " ".join(shlex.quote(arg)
+                                       for arg in service_command))
+    started = time.monotonic()
+    progress_deadline = started + 90
+    absolute_deadline = started + 300
+    last_ready = -1
+    while True:
+        ready = len(sn_get_container_info(remote_ssh))
+        if ready == node_size:
+            break
+        now = time.monotonic()
+        if ready > last_ready:
+            last_ready = ready
+            progress_deadline = now + 90
+        if now > progress_deadline or now > absolute_deadline:
+            raise RuntimeError(
+                'StarryNet containers did not become ready: {0}/{1} ready; '
+                'no progress for 90 seconds or 300-second absolute limit reached'.format(
+                    ready, node_size))
         sleep(1)
 
 
@@ -305,7 +335,7 @@ class sn_Link_Init_Thread(CheckedThread):
     def __init__(self, remote_ssh, remote_ftp, orbit_num, sat_num,
                  constellation_size, fac_num, file_path,
                  configuration_file_path, sat_bandwidth, sat_ground_bandwidth,
-                 sat_loss, sat_ground_loss):
+                 sat_loss, sat_ground_loss, link_profile=None):
         CheckedThread.__init__(self)
         self.remote_ssh = remote_ssh
         self.constellation_size = constellation_size
@@ -319,6 +349,7 @@ class sn_Link_Init_Thread(CheckedThread):
         self.sat_loss = sat_loss
         self.sat_ground_loss = sat_ground_loss
         self.remote_ftp = remote_ftp
+        self.link_profile = link_profile
 
     def run(self):
         print('Run in link init thread.')
@@ -327,13 +358,19 @@ class sn_Link_Init_Thread(CheckedThread):
             self.configuration_file_path + "/" + self.file_path +
             '/delay/1.txt', self.file_path + "/1.txt")
         print('Initializing links ...')
-        sn_remote_cmd(
-            self.remote_ssh, "python3 " + self.file_path +
-            "/sn_orchestrater.py" + " " + str(self.orbit_num) + " " +
-            str(self.sat_num) + " " + str(self.constellation_size) + " " +
-            str(self.fac_num) + " " + str(self.sat_bandwidth) + " " +
-            str(self.sat_loss) + " " + str(self.sat_ground_bandwidth) + " " +
-            str(self.sat_ground_loss) + " " + self.file_path + "/1.txt")
+        command = ("python3 " + self.file_path + "/sn_orchestrater.py " +
+                   str(self.orbit_num) + " " + str(self.sat_num) + " " +
+                   str(self.constellation_size) + " " + str(self.fac_num) + " " +
+                   str(self.sat_bandwidth) + " " + str(self.sat_loss) + " " +
+                   str(self.sat_ground_bandwidth) + " " +
+                   str(self.sat_ground_loss) + " " + self.file_path + "/1.txt")
+        if self.link_profile is not None:
+            command += " " + shlex.quote(json.dumps(self.link_profile,
+                                                       sort_keys=True))
+        if self.link_profile is not None:
+            sn_remote_checked_cmd(self.remote_ssh, command)
+        else:
+            sn_remote_cmd(self.remote_ssh, command)
 
 
 # A thread designed for initializing bird routing.
@@ -378,7 +415,7 @@ class sn_Emulation_Start_Thread(CheckedThread):
                  sr_time, damage_ratio, damage_time, damage_list,
                  recovery_time, route_src, route_time, duration,
                  utility_checking_time, perf_src, perf_des, perf_time,
-                 scheduled_callbacks=None):
+                 scheduled_callbacks=None, link_profile=None):
         CheckedThread.__init__(self)
         self.remote_ssh = remote_ssh
         self.remote_ftp = remote_ftp
@@ -409,9 +446,14 @@ class sn_Emulation_Start_Thread(CheckedThread):
         self.duration = duration
         self.utility_checking_time = utility_checking_time
         self.scheduled_callbacks = list(scheduled_callbacks or [])
+        self.link_profile = link_profile
         self.callback_threads = []
+        self._stop_event = threading.Event()
         if self.container_id_list == []:
             self.container_id_list = sn_get_container_info(self.remote_ssh)
+
+    def request_stop(self):
+        self._stop_event.set()
 
     def dispatch_scheduled_callbacks(self, timeptr):
         for scheduled_time, callback in self.scheduled_callbacks:
@@ -421,21 +463,63 @@ class sn_Emulation_Start_Thread(CheckedThread):
                 callback_thread.start()
                 self.callback_threads.append(callback_thread)
 
+    def record_simulation_clock(self, timeptr, event="logical_tick",
+                                scheduled_monotonic=None, scheduler_lag=None):
+        if self.link_profile is None:
+            return
+        clock_path = os.path.join(self.configuration_file_path, self.file_path,
+                                  "simulation_clock.jsonl")
+        os.makedirs(os.path.dirname(clock_path), exist_ok=True)
+        record = {
+            "logical_time_seconds": int(timeptr),
+            "event": event,
+            "utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "monotonic_seconds": time.monotonic(),
+        }
+        if scheduled_monotonic is not None:
+            record["scheduled_monotonic_seconds"] = scheduled_monotonic
+        if scheduler_lag is not None:
+            record["scheduler_lag_seconds"] = scheduler_lag
+        with open(clock_path, "a", encoding="utf-8") as stream:
+            stream.write(json.dumps(record, sort_keys=True) + "\n")
+
     def run(self):
         ping_threads = []
         perf_threads = []
         timeptr = 2  # current emulating time
+        logical_anchor = time.monotonic() if self.link_profile is not None else None
+        if logical_anchor is not None:
+            self.record_simulation_clock(
+                timeptr, "scheduler_anchor", scheduled_monotonic=logical_anchor,
+                scheduler_lag=0.0)
         topo_change_file_path = self.configuration_file_path + "/" + self.file_path + '/Topo_leo_change.txt'
         fi = open(topo_change_file_path, 'r')
         line = fi.readline()
         while line:  # starting reading change information and emulating
+            if self._stop_event.is_set():
+                return
             words = line.split()
             if words[0] == 'time':
                 print('Emulation in No.' + str(timeptr) + ' second.')
                 # the time when the new change occurrs
                 current_time = str(int(words[1][:-1]))
                 while int(current_time) > timeptr:
-                    start_time = time.time()
+                    if self._stop_event.is_set():
+                        return
+                    if logical_anchor is not None:
+                        scheduled_time = logical_anchor + (timeptr - 2)
+                        while True:
+                            remaining = scheduled_time - time.monotonic()
+                            if remaining <= 0:
+                                break
+                            if self._stop_event.wait(remaining):
+                                return
+                        start_time = time.monotonic()
+                        self.record_simulation_clock(
+                            timeptr, scheduled_monotonic=scheduled_time,
+                            scheduler_lag=max(0.0, start_time - scheduled_time))
+                    else:
+                        start_time = time.time()
                     if timeptr in self.utility_checking_time:
                         sn_check_utility(
                             timeptr, self.remote_ssh,
@@ -446,7 +530,8 @@ class sn_Emulation_Start_Thread(CheckedThread):
                         sn_update_delay(self.file_path,
                                         self.configuration_file_path, timeptr,
                                         self.constellation_size,
-                                        self.remote_ssh, self.remote_ftp)
+                                        self.remote_ssh, self.remote_ftp,
+                                        self.link_profile)
                     if timeptr in self.damage_time:
                         sn_damage(
                             self.damage_ratio[self.damage_time.index(timeptr)],
@@ -519,14 +604,17 @@ class sn_Emulation_Start_Thread(CheckedThread):
                                      self.container_id_list, self.remote_ssh)
                     self.dispatch_scheduled_callbacks(timeptr)
                     timeptr += 1
-                    end_time = time.time()
-                    passed_time = (
-                        end_time -
-                        start_time) if (end_time - start_time) < 1 else 1
-                    sleep(1 - passed_time)
+                    if logical_anchor is None:
+                        end_time = time.time()
+                        passed_time = (
+                            end_time -
+                            start_time) if (end_time - start_time) < 1 else 1
+                        sleep(max(0, 1 - passed_time))
                     if timeptr >= self.duration:
                         return
                     print('Emulation in No.' + str(timeptr) + ' second.')
+                if self._stop_event.is_set():
+                    return
                 print("A change in time " + current_time + ':')
                 line = fi.readline()
                 words = line.split()
@@ -534,6 +622,8 @@ class sn_Emulation_Start_Thread(CheckedThread):
                 line = fi.readline()
                 words = line.split()
                 while words[0] != 'del:':  # addlink
+                    if self._stop_event.is_set():
+                        return
                     word = words[0].split('-')
                     s = int(word[0])
                     f = int(word[1])
@@ -549,7 +639,8 @@ class sn_Emulation_Start_Thread(CheckedThread):
                                          self.constellation_size,
                                          self.sat_ground_bw,
                                          self.sat_ground_loss, s, f,
-                                         self.remote_ssh)
+                                         self.remote_ssh,
+                                         self.link_profile)
                     line = fi.readline()
                     words = line.split()
                 line = fi.readline()
@@ -557,6 +648,8 @@ class sn_Emulation_Start_Thread(CheckedThread):
                 if len(words) == 0:
                     return
                 while words[0] != 'time':  # delete link
+                    if self._stop_event.is_set():
+                        return
                     word = words[0].split('-')
                     s = int(word[0])
                     f = int(word[1])
@@ -570,6 +663,7 @@ class sn_Emulation_Start_Thread(CheckedThread):
                     words = line.split()
                     if len(words) == 0:
                         return
+                self.record_simulation_clock(timeptr, "topology_change_applied")
                 if timeptr in self.utility_checking_time:
                     sn_check_utility(
                         timeptr, self.remote_ssh,
@@ -579,7 +673,7 @@ class sn_Emulation_Start_Thread(CheckedThread):
                     sn_update_delay(self.file_path,
                                     self.configuration_file_path, timeptr,
                                     self.constellation_size, self.remote_ssh,
-                                    self.remote_ftp)
+                                    self.remote_ftp, self.link_profile)
                 if timeptr in self.damage_time:
                     sn_damage(
                         self.damage_ratio[self.damage_time.index(timeptr)],
@@ -665,15 +759,19 @@ def sn_check_utility(time_index, remote_ssh, file_path):
 
 def sn_update_delay(file_path, configuration_file_path, timeptr,
                     constellation_size, remote_ssh,
-                    remote_ftp):  # updating delays
+                    remote_ftp, link_profile=None):  # updating delays
     sn_upload_orchestrater(remote_ftp, file_path)
     remote_ftp.put(
         configuration_file_path + "/" + file_path + '/delay/' + str(timeptr) +
         '.txt', file_path + '/' + str(timeptr) + '.txt')
-    sn_remote_cmd(
-        remote_ssh,
-        "python3 " + file_path + "/sn_orchestrater.py " + file_path + '/' +
-        str(timeptr) + '.txt ' + str(constellation_size) + " update")
+    command = ("python3 " + file_path + "/sn_orchestrater.py " + file_path + '/' +
+               str(timeptr) + '.txt ' + str(constellation_size) + " update")
+    if link_profile is not None:
+        command += " " + shlex.quote(json.dumps(link_profile, sort_keys=True))
+    if link_profile is not None:
+        sn_remote_checked_cmd(remote_ssh, command)
+    else:
+        sn_remote_cmd(remote_ssh, command)
     print("Delay updating done.\n")
 
 
@@ -719,7 +817,7 @@ def sn_recover(damage_list, sat_loss, remote_ssh, remote_ftp, file_path,
 def sn_sr(src, des, target, container_id_list, remote_ssh):
     ifconfig_output = sn_remote_cmd(
         remote_ssh, "docker exec -i " + str(container_id_list[des - 1]) +
-        " ifconfig | sed 's/[ \t].*//;/^\(eth0\|\)\(lo\|\)$/d'")
+        " ifconfig | sed 's/[ \t].*//;/^\\(eth0\\|\\)\\(lo\\|\\)$/d'")
     des_IP = sn_remote_cmd(
         remote_ssh,
         "docker exec -i " + str(container_id_list[des - 1]) + " ifconfig " +
@@ -745,7 +843,7 @@ def sn_ping(src, des, time_index, constellation_size, container_id_list,
     if des <= constellation_size:
         ifconfig_output = sn_remote_cmd(
             remote_ssh, "docker exec -i " + str(container_id_list[des - 1]) +
-            " ifconfig | sed 's/[ \t].*//;/^\(eth0\|\)\(lo\|\)$/d'")
+            " ifconfig | sed 's/[ \t].*//;/^\\(eth0\\|\\)\\(lo\\|\\)$/d'")
         des_IP = sn_remote_cmd(
             remote_ssh, "docker exec -i " + str(container_id_list[des - 1]) +
             " ifconfig " + ifconfig_output[0][:-1] +
@@ -774,7 +872,7 @@ def sn_perf(src, des, time_index, constellation_size, container_id_list,
     if des <= constellation_size:
         ifconfig_output = sn_remote_cmd(
             remote_ssh, "docker exec -i " + str(container_id_list[des - 1]) +
-            " ifconfig | sed 's/[ \t].*//;/^\(eth0\|\)\(lo\|\)$/d'")
+            " ifconfig | sed 's/[ \t].*//;/^\\(eth0\\|\\)\\(lo\\|\\)$/d'")
         des_IP = sn_remote_cmd(
             remote_ssh, "docker exec -i " + str(container_id_list[des - 1]) +
             " ifconfig " + ifconfig_output[0][:-1] +
@@ -854,17 +952,33 @@ def sn_pause_kernel_exports(remote_ssh, container_ids, subnet):
 
 
 def sn_establish_new_GSL(container_id_list, matrix, constellation_size, bw,
-                         loss, sat_index, GS_index, remote_ssh):
+                         loss, sat_index, GS_index, remote_ssh,
+                         link_profile=None):
     subnet = '9.{}.{}.0/24'.format((GS_index - constellation_size) & 0xff,
                                  sat_index & 0xff)
     endpoints = [container_id_list[sat_index - 1], container_id_list[GS_index - 1]]
     with sn_pause_kernel_exports(remote_ssh, endpoints, subnet):
         _sn_establish_new_GSL(container_id_list, matrix, constellation_size, bw,
-                             loss, sat_index, GS_index, remote_ssh)
+                             loss, sat_index, GS_index, remote_ssh,
+                             link_profile)
+
+
+def _sn_apply_gsl_profile(remote_ssh, container_id, interface, delay,
+                          bandwidth, loss, profile):
+    if profile is None:
+        options = ["delay", str(delay) + "ms", "loss", str(loss) + "%",
+                   "rate", str(bandwidth) + "Gbit"]
+    else:
+        options = netem_arguments(float(delay), profile)
+    command = ["docker", "exec", "-i", str(container_id), "tc", "qdisc",
+               "replace", "dev", interface, "root", "netem"] + options
+    sn_remote_checked_cmd(remote_ssh,
+                          " ".join(shlex.quote(str(item)) for item in command))
 
 
 def _sn_establish_new_GSL(container_id_list, matrix, constellation_size, bw,
-                          loss, sat_index, GS_index, remote_ssh):
+                          loss, sat_index, GS_index, remote_ssh,
+                          link_profile=None):
     i = sat_index
     j = GS_index
     # IP address  (there is a link between i and j)
@@ -899,11 +1013,10 @@ def _sn_establish_new_GSL(container_id_list, matrix, constellation_size, bw,
     sn_remote_cmd(
         remote_ssh, "docker exec -i " + str(container_id_list[i - 1]) +
         " ip link set dev B" + str(i - 1 + 1) + "-eth" + str(j) + " up")
-    sn_remote_cmd(
-        remote_ssh, "docker exec -i " + str(container_id_list[i - 1]) +
-        " tc qdisc add dev B" + str(i) + "-eth" + str(j) +
-        " root netem delay " + str(delay) + "ms loss " + str(loss) +
-        "% rate " + str(bw) + "Gbit")
+    _sn_apply_gsl_profile(
+        remote_ssh, container_id_list[i - 1], "B{}-eth{}".format(i, j),
+        delay, bw, loss,
+        profile_for(link_profile, "satellite_ground", "satellite_to_ground"))
     print('[Add current node:]' + 'docker network connect ' + GSL_name + " " +
           str(container_id_list[i - 1]) + " --ip 9." + str(address_16_23) +
           "." + str(address_8_15) + ".50")
@@ -927,11 +1040,10 @@ def _sn_establish_new_GSL(container_id_list, matrix, constellation_size, bw,
     sn_remote_cmd(
         remote_ssh, "docker exec -i " + str(container_id_list[j - 1]) +
         " ip link set dev B" + str(j) + "-eth" + str(i - 1 + 1) + " up")
-    sn_remote_cmd(
-        remote_ssh, "docker exec -i " + str(container_id_list[j - 1]) +
-        " tc qdisc add dev B" + str(j) + "-eth" + str(i) +
-        " root netem delay " + str(delay) + "ms loss " + str(loss) +
-        "% rate " + str(bw) + "Gbit")
+    _sn_apply_gsl_profile(
+        remote_ssh, container_id_list[j - 1], "B{}-eth{}".format(j, i),
+        delay, bw, loss,
+        profile_for(link_profile, "satellite_ground", "ground_to_satellite"))
     print('[Add right node:]' + 'docker network connect ' + GSL_name + " " +
           str(container_id_list[j - 1]) + " --ip 9." + str(address_16_23) +
           "." + str(address_8_15) + ".60")

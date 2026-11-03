@@ -84,10 +84,14 @@ def prepare():
     return run
 
 
-def topology_report(run, path):
+def topology_report(run, path, expected_matrix_count=100):
     import numpy as np
+    if not isinstance(expected_matrix_count, int) or expected_matrix_count < 1:
+        raise ValueError('expected_matrix_count must be a positive integer')
     matrices = [np.loadtxt(p, delimiter=',') for p in sorted(path.glob('delay/*.txt'), key=lambda p: int(p.stem))]
-    assert len(matrices) == 100
+    if len(matrices) != expected_matrix_count:
+        raise RuntimeError('expected {} topology delay matrices, found {}'.format(
+            expected_matrix_count, len(matrices)))
     assert all(a.shape == (27, 27) and np.isfinite(a).all() and (a >= 0).all()
                and np.allclose(a, a.T) for a in matrices)
     attachment = [[np.flatnonzero(a[g, :25]).tolist() for g in (25, 26)] for a in matrices]

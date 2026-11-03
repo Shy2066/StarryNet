@@ -1,0 +1,12 @@
+{
+  "bridge_diagnostic_summary_path": "artifacts/reports/satellite_wf_v3_20261021/five_class_candidate_20261029_v5/bridge_diagnostic_summary_20261029_v5.json",
+  "bridge_diagnostic_summary_sha256": "194d4aeb58bd9d7cc4cbca3d5ea8326e51e6fc738d30e992d20bfdcc914b4464",
+  "diagnostic_elapsed_seconds": 930.972,
+  "diagnostic_started_utc": "2026-10-28T07:59:18.687261+00:00",
+  "inherited_attempts_by_order": {},
+  "prior_online_elapsed_seconds": 853.582,
+  "protocol_id": "starrynet-browser-tor-route-nat-v3-v5-20261029",
+  "schema_version": 1,
+  "startup_gate_started_utc": "2026-10-28T07:59:18.687261+00:00",
+  "status": "qualified"
+}

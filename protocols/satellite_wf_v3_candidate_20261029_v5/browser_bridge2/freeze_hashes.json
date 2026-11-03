@@ -1,0 +1,76 @@
+{
+  "data_domain": "E_BROWSER_TOR_V2",
+  "directory_hash_algorithm": "sorted relative paths, entry types, permission bits, and file-content SHA-256",
+  "hashes": {
+    "browser_directory": {
+      "kind": "directory",
+      "path": "/home/shy/Project/StarryNet/artifacts/e_browser_tor_pilot_v2_2_runtime_rebase_20261026/assets/tor-browser",
+      "sha256": "8d41c85b418687429e88b4fc5bf665f9bf059bb1047998e04353b9f802f9d390"
+    },
+    "browser_helper_packages": {
+      "kind": "directory",
+      "path": "/home/shy/Project/StarryNet/artifacts/e_browser_tor_pilot_v2_2_runtime_rebase_20261026/assets/python-site-packages",
+      "sha256": "df9d2ec1ef93a839e8503f75e09c1d1b2a4a36542837e4b22bdef6b772f0bb70"
+    },
+    "expert_bundle": {
+      "kind": "directory",
+      "path": "/home/shy/Project/StarryNet/artifacts/bridge_preflight/assets/15.0.25/bundle",
+      "sha256": "1df5325bd955834d039064f568131f1948e2f19e7ef540a14b1000258a8b8898"
+    },
+    "geckodriver": {
+      "kind": "file",
+      "path": "/home/shy/Project/StarryNet/artifacts/e_browser_tor_pilot_v2_2_runtime_rebase_20261026/assets/geckodriver",
+      "sha256": "f831b7e61454804e8a307edd951bf8a5f373efe3f718e75454a6485a51f6e39f"
+    },
+    "geckodriver_archive": {
+      "kind": "file",
+      "path": "/home/shy/Project/StarryNet/artifacts/e_browser_tor_pilot_v2_2_runtime_rebase_20261026/assets/source/geckodriver-v0.37.1-linux64.tar.gz",
+      "sha256": "e815130ea95983e162ae91843b48d3a3ce991735635fce83a647afde21e09f7e"
+    },
+    "python_requirements_lock": {
+      "kind": "file",
+      "path": "/home/shy/Project/StarryNet/artifacts/e_browser_tor_pilot_v2_2_runtime_rebase_20261026/protocol/python-requirements-rebased.txt",
+      "sha256": "a460502b47b3767b902d7f169c6e851645d09993b1ae0a9f50072eee23a47e8f"
+    },
+    "runtime_config": {
+      "kind": "file",
+      "path": "/home/shy/Project/StarryNet/protocols/satellite_wf_v3_candidate_20261029_v5/browser_bridge2/runtime_config.json",
+      "sha256": "61ab8fcb27ffe3fd5a4d65488a48b468c4a7b184df1f921924f91811f9c7bb9b"
+    },
+    "runtime_rebase_provenance": {
+      "kind": "file",
+      "path": "/home/shy/Project/StarryNet/artifacts/e_browser_tor_pilot_v2_2_runtime_rebase_20261026/protocol/runtime_rebase_provenance.json",
+      "sha256": "eaececdd2fe7122b973e186d93c8be4d5b50123ebabd94079cbc8e94a7563ed5"
+    },
+    "tor_browser_archive": {
+      "kind": "file",
+      "path": "/home/shy/Project/StarryNet/artifacts/e_browser_tor_pilot_v2_2_runtime_rebase_20261026/assets/source/tor-browser-linux-x86_64-15.0.25.tar.xz",
+      "sha256": "37432d6f4d9b1f1190ba2cfbbd4ab9dad5ccd52c14aa47a21795d08273f4a165"
+    },
+    "tor_browser_archive_signature": {
+      "kind": "file",
+      "path": "/home/shy/Project/StarryNet/artifacts/e_browser_tor_pilot_v2_2_runtime_rebase_20261026/assets/source/tor-browser-linux-x86_64-15.0.25.tar.xz.asc",
+      "sha256": "d318920393b2c297b06ed4d0a2e7b45e42436e3f0ad7215a4dbec3b82b6c2eff"
+    },
+    "tor_browser_developers_key": {
+      "kind": "file",
+      "path": "/home/shy/Project/StarryNet/artifacts/e_browser_tor_pilot_v2_2_runtime_rebase_20261026/assets/source/tor-browser-developers.key",
+      "sha256": "c2ed2cb463bf384630f2c746448399ab944c3aeade4619f940f07372a57780d7"
+    },
+    "webtunnel_bridge_file": {
+      "kind": "file",
+      "path": "/home/shy/Project/StarryNet/protocols/satellite_wf_v3_candidate_20261029_v5/browser_bridge2/webtunnel-bridge2.txt",
+      "sha256": "182a145bd359c6df54843b58454f3b80a2c75f005d1cb93f3652e2ad8c43ef37"
+    }
+  },
+  "helper_image_id": "sha256:168196aef4661dbe43899fb144428a1c68ccb0391a0bb5520c63d606464aa27c",
+  "parent_runtime_freeze": {
+    "path": "/home/shy/Project/StarryNet/artifacts/e_browser_tor_pilot_v2_2_20261021/protocol/freeze_hashes.json",
+    "sha256": "672a5677501736ce64aaa59be89b30f28a41fbd915eb696b21f05a5cb22b6bd2"
+  },
+  "planned_sample_count": 50,
+  "protocol_id": "starrynet-e-browser-tor-v5-browser_bridge2",
+  "runtime_variant_id": "browser-tor-runtime-v5-browser_bridge2",
+  "scope": "V5 cold-start diagnostic and Browser/Tor dataset candidate; same browser, Tor, proxy and image, with a separately frozen bridge input.",
+  "source_list_sha256": "182a145bd359c6df54843b58454f3b80a2c75f005d1cb93f3652e2ad8c43ef37"
+}

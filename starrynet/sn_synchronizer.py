@@ -14,7 +14,7 @@ class StarryNet():
                  configuration_file_path,
                  GS_lat_long,
                  hello_interval=10,
-                 AS=[], local=False, argv=None):
+                 AS=[], local=False, argv=None, link_profile=None):
         # Initialize constellation information.
         sn_args = sn_load_file(configuration_file_path, GS_lat_long, argv)
         self.name = sn_args.cons_name
@@ -30,6 +30,7 @@ class StarryNet():
         self.link_policy = sn_args.link_policy
         self.update_interval = sn_args.update_interval
         self.duration = sn_args.duration
+        self.simulation_start_utc = sn_args.simulation_start_utc
         self.inter_routing = sn_args.inter_routing
         self.intra_routing = sn_args.intra_routing
         self.cycle = sn_args.cycle
@@ -38,6 +39,8 @@ class StarryNet():
         self.sat_ground_bandwidth = sn_args.sat_ground_bandwidth
         self.sat_loss = sn_args.sat_loss
         self.sat_ground_loss = sn_args.sat_ground_loss
+        self.link_profile = (validate_profile(link_profile)
+                             if link_profile is not None else None)
         self.ground_num = sn_args.ground_num
         self.multi_machine = sn_args.multi_machine
         self.antenna_number = sn_args.antenna_number
@@ -58,7 +61,7 @@ class StarryNet():
                                  self.duration, self.antenna_number,
                                  GS_lat_long, self.antenna_inclination,
                                  self.intra_routing, self.hello_interval,
-                                 self.AS)
+                                 self.AS, self.simulation_start_utc)
         self.docker_service_name = 'constellation-test'
         self.isl_idx = 0
         self.ISL_hub = 'ISL_hub'
@@ -120,7 +123,8 @@ class StarryNet():
         sn_thread = sn_Node_Init_Thread(self.remote_ssh,
                                         self.docker_service_name,
                                         self.node_size, self.container_id_list,
-                                        self.container_global_idx)
+                                        self.container_global_idx,
+                                        getattr(self, 'container_sysctls', None))
         sn_thread.start()
         sn_thread.join()
         self.container_id_list = sn_get_container_info(self.remote_ssh)
@@ -133,7 +137,8 @@ class StarryNet():
             self.remote_ssh, self.remote_ftp, self.orbit_number,
             self.sat_number, self.constellation_size, self.fac_num,
             self.file_path, self.configuration_file_path, self.sat_bandwidth,
-            self.sat_ground_bandwidth, self.sat_loss, self.sat_ground_loss)
+            self.sat_ground_bandwidth, self.sat_loss, self.sat_ground_loss,
+            self.link_profile)
         isl_thread.start()
         isl_thread.join()
         print("Link initialization done.")
@@ -245,7 +250,7 @@ class StarryNet():
             self.damage_list, self.recovery_time, self.route_src,
             self.route_time, self.duration, self.utility_checking_time,
             self.perf_src, self.perf_des, self.perf_time,
-            self.scheduled_callbacks)
+            self.scheduled_callbacks, self.link_profile)
         self.emulation_thread = sn_thread
         sn_thread.start()
         scheduler_error = None
@@ -265,8 +270,23 @@ class StarryNet():
             raise callback_errors[0]
 
     def stop_emulation(self):
-        # Stop emulation in a new thread.
+        # Ask the scheduler to leave its loop before deleting containers.  A
+        # direct service removal can otherwise race an in-flight tc command
+        # and manufacture exit-137/No-such-container worker errors.
+        emulation_thread = getattr(self, 'emulation_thread', None)
+        scheduler_error = None
+        if emulation_thread is not None and emulation_thread.is_alive():
+            emulation_thread.request_stop()
+            try:
+                emulation_thread.join(timeout=30)
+            except BaseException as exc:
+                scheduler_error = exc
+            if emulation_thread.is_alive():
+                scheduler_error = scheduler_error or RuntimeError(
+                    'StarryNet scheduler did not stop within 30 seconds')
         sn_thread = sn_Emulation_Stop_Thread(self.remote_ssh, self.remote_ftp,
                                              self.file_path)
         sn_thread.start()
         sn_thread.join()
+        if scheduler_error is not None:
+            raise scheduler_error

@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "protocol_id": "starrynet-browser-tor-route-nat-v3",
+  "data_domain": "E_BROWSER_TOR_V3",
+  "runtime_status": "network_profile_api_implemented_collector_not_connected",
+  "network": {
+    "mode": "gre_route_nat",
+    "client_ground_station": 26,
+    "egress_ground_station": 27,
+    "client_underlay_address": "9.26.26.10",
+    "egress_underlay_address": "9.27.27.10",
+    "tunnel_interface": "wf-gre0",
+    "tunnel_key": 1398228531,
+    "client_tunnel_address": "10.255.253.1/30",
+    "egress_tunnel_address": "10.255.253.2/30",
+    "capture_interface": "wf-gre0",
+    "browser_proxy_environment": "unset",
+    "client_ipv6_policy": "disable_in_isolated_namespace",
+    "egress_interface": "B27-default",
+    "fixed_object_endpoint": {
+      "network": "GS_27",
+      "interface": "B27-default",
+      "address": "9.27.27.20",
+      "port": 18080,
+      "object_name": "fixed-object.bin",
+      "object_size_bytes": 1048576,
+      "image": "lwsen/starlab_node:1.0"
+    }
+  },
+  "topology": {
+    "config_file": "../../config.json",
+    "satellites": 25,
+    "ground_stations": 2,
+    "duration_seconds": 7200,
+    "update_interval_seconds": 10
+  },
+  "link_profiles": {
+    "engineering_baseline": {
+      "scientific_calibration": false,
+      "inter_satellite": {
+        "a_to_b": {
+          "rate_mbps": 5000,
+          "extra_one_way_delay_ms": 0,
+          "jitter_ms": 0,
+          "loss_percent": 0,
+          "queue_packets": 1000
+        },
+        "b_to_a": {
+          "rate_mbps": 5000,
+          "extra_one_way_delay_ms": 0,
+          "jitter_ms": 0,
+          "loss_percent": 0,
+          "queue_packets": 1000
+        }
+      },
+      "satellite_ground": {
+        "satellite_to_ground": {
+          "rate_mbps": 5000,
+          "extra_one_way_delay_ms": 0,
+          "jitter_ms": 0,
+          "loss_percent": 0,
+          "queue_packets": 1000
+        },
+        "ground_to_satellite": {
+          "rate_mbps": 5000,
+          "extra_one_way_delay_ms": 0,
+          "jitter_ms": 0,
+          "loss_percent": 0,
+          "queue_packets": 1000
+        }
+      }
+    },
+    "sensitivity_profiles": {},
+    "dynamic_runtime_integration": "optional_StarryNet_link_profile_api"
+  },
+  "scenarios": [
+    {
+      "id": "no_satellite_reference",
+      "purpose": "fixed-object connectivity control only",
+      "validation_stage": "fixed_object_transfer",
+      "topology_mode": "direct_reference",
+      "egress_mode": "direct",
+      "satellite_route_required": false,
+      "handover_policy": "not_applicable",
+      "interruption_measurement": "not_applicable",
+      "link_profile": "engineering_baseline",
+      "training_candidate": false
+    },
+    {
+      "id": "static_satellite_path",
+      "purpose": "fixed-object satellite path control",
+      "validation_stage": "fixed_object_transfer",
+      "topology_mode": "static",
+      "egress_mode": "gre_route_nat",
+      "satellite_route_required": true,
+      "handover_policy": "must_not_occur",
+      "interruption_measurement": "observe_route_gap_and_recovery",
+      "link_profile": "engineering_baseline",
+      "training_candidate": false
+    },
+    {
+      "id": "dynamic_no_handover",
+      "purpose": "dynamic satellite path control without a link handover in the capture window",
+      "validation_stage": "fixed_object_transfer_then_browser",
+      "topology_mode": "dynamic",
+      "egress_mode": "gre_route_nat",
+      "satellite_route_required": true,
+      "handover_policy": "must_not_occur_during_capture_window",
+      "interruption_measurement": "record_route_gap_if_observed",
+      "link_profile": "engineering_baseline",
+      "training_candidate": true
+    },
+    {
+      "id": "dynamic_handover",
+      "purpose": "dynamic satellite path with observed handover and recovery",
+      "validation_stage": "fixed_object_transfer_then_browser",
+      "topology_mode": "dynamic",
+      "egress_mode": "gre_route_nat",
+      "satellite_route_required": true,
+      "handover_policy": "must_occur_and_recover",
+      "interruption_measurement": "measure_from_route_and_capture_events",
+      "link_profile": "engineering_baseline",
+      "training_candidate": true
+    }
+  ],
+  "capture": {
+    "clock": "monotonic",
+    "retain_pcap_guard_seconds": 5,
+    "derive_trace_from_navigation_markers": true,
+    "preserve_raw_trace": true,
+    "tso_gso_gro_lro": "disable_and_verify_on_capture_interface",
+    "require_zero_kernel_capture_drops": true
+  },
+  "pilot": {
+    "max_parallel_collectors": 1,
+    "total_online_budget_seconds": 14400,
+    "attempt_timeout_seconds": 1200,
+    "cleanup_grace_seconds": 110,
+    "per_site_retry_limit": 1,
+    "infrastructure_failure_policy": "pause_without_consuming_site_retry",
+    "samples_per_site": 3,
+    "site_count": 5
+  },
+  "training": {
+    "accepted_source_audit_statuses": [
+      "passed",
+      "user_attested_with_unresolved_semantics"
+    ],
+    "require_attestation_for_unresolved_semantics": true,
+    "require_session_grouped_split": true,
+    "require_five_common_classes": true,
+    "scientific_fidelity_claim": false
+  }
+}

@@ -19,6 +19,66 @@ python3 tools/audit_trace_domains.py \
 报告中的语义说明是审计结果的一部分：只有时间戳与方向时，不能据此推断带宽、丢包、
 队列、TCP 重传或切换参数；现有 `tor_satellite` 目录也不会自动获得新 P2/P3 来源证明。
 
+## E_v4 动态重放
+
+`replay_trace_over_starrynet.py` 是 E_v4 的唯一入口。它把 F 的事件顺序重放到动态
+StarryNet（GS26 → GS27 为 `+1`，反向为 `-1`），由 GS26 的实际发送/接收观察生成新 trace；
+`dataset/tor_satellite` 不会被修改，也不会被当作 E_v4。E_v4 是受控 UDP 重放，不是浏览器、
+TCP 或 Tor 拥塞控制流量，且在真实链路参数标定前保持
+`engineering_pipeline_verified=true`、`scientific_fidelity_verified=false`。
+两端代理使用固定 512 B 报文和 19999/20000 两个 UDP 端口；PCAP 在 GS26 网络命名空间的
+`any` 接口上只抓取这两个端口，以便跨越会删除旧 `B26-eth*` 接口的 GS26 切换。会话前后的
+路由快照仍要求远端地址经实际卫星接口转发。
+
+输出统一保存到 `/mnt/HDD4T/shy/StarryNet_E_v4`。如果挂载点尚未给当前用户写权限，先执行一次：
+
+```bash
+sudo install -d -o shy -g shy -m 0755 /mnt/HDD4T/shy/StarryNet_E_v4
+```
+
+先做纯离线计划（pilot 自动使用 0、18、37、56、74 类，每类 10 次）：
+
+```bash
+python3 tools/replay_trace_over_starrynet.py plan --pilot \
+  --input dataset/tor_fiber \
+  --run-root /mnt/HDD4T/shy/StarryNet_E_v4/artifacts/e_replay_v4 \
+  --dataset-output /mnt/HDD4T/shy/StarryNet_E_v4/dataset/tor_satellite_replay_v4 \
+  --seed 2024 --speed 1 --session-seconds 900
+```
+
+确认 Docker Swarm、StarryNet 镜像和磁盘后，再由人工启动动态预检和 pilot：
+
+```bash
+python3 tools/replay_trace_over_starrynet.py preflight \
+  --manifest /mnt/HDD4T/shy/StarryNet_E_v4/artifacts/e_replay_v4/<run-id>/manifest.json
+python3 tools/replay_trace_over_starrynet.py run \
+  --manifest /mnt/HDD4T/shy/StarryNet_E_v4/artifacts/e_replay_v4/<run-id>/manifest.json
+python3 tools/replay_trace_over_starrynet.py verify \
+  --manifest /mnt/HDD4T/shy/StarryNet_E_v4/artifacts/e_replay_v4/<run-id>/manifest.json
+```
+
+预检未通过时不得运行 pilot。中断后显式使用 `--resume`；成功根目录通过哈希校验的样本会跳过，
+失败 attempt 保留在 `samples/<sample-id>/attempts/` 和 `attempts.jsonl`，基础设施最多允许一次重试。
+只有 pilot 的动态矩阵、切换、双端事件计数、PCAP 和资源清理均通过后，才建立全量正式计划：
+
+```bash
+python3 tools/replay_trace_over_starrynet.py plan \
+  --input dataset/tor_fiber \
+  --run-root /mnt/HDD4T/shy/StarryNet_E_v4/artifacts/e_replay_v4 \
+  --dataset-output /mnt/HDD4T/shy/StarryNet_E_v4/dataset/tor_satellite_replay_v4 \
+  --seed 2024 --speed 1 --session-seconds 7200
+```
+
+正式 run 完成并离线 verify 通过后，最后才允许原子发布：
+
+```bash
+python3 tools/replay_trace_over_starrynet.py finalize \
+  --manifest /mnt/HDD4T/shy/StarryNet_E_v4/artifacts/e_replay_v4/<run-id>/manifest.json
+```
+
+`verify` 不访问 Docker 或网络；`finalize` 拒绝覆盖非空目标目录。发布前应另行运行
+`tools/audit_trace_domains.py`，并把 manifest、session PCAP、agent 日志和 evidence 一并归档。
+
 ## 可恢复批处理
 
 先准备页面清单，例如 `pages.json`：

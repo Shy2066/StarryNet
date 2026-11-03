@@ -1,6 +1,7 @@
 import os
-import threading
 import sys
+import json
+import shlex
 from time import sleep
 import numpy
 import subprocess
@@ -10,8 +11,27 @@ try:
 except ImportError:
     from sn_thread import CheckedThread, WORKER_ERRORS
 
+try:
+    from starrynet.sn_link_profile import (direction_for_nodes, netem_arguments,
+                                           profile_for)
+except ImportError:
+    from sn_link_profile import (direction_for_nodes, netem_arguments,
+                                 profile_for)
+
 def sn_checked_system(command):
     subprocess.run(command, shell=True, executable='/bin/bash', check=True)
+
+
+def sn_apply_link_qdisc(container_id, interface, delay, bandwidth, loss,
+                         profile=None):
+    if profile is None:
+        options = ["delay", str(delay) + "ms", "loss", str(loss) + "%",
+                   "rate", str(bandwidth) + "Gbit"]
+    else:
+        options = netem_arguments(float(delay), profile)
+    command = ["docker", "exec", "-i", str(container_id), "tc", "qdisc",
+               "replace", "dev", interface, "root", "netem"] + options
+    sn_checked_system(" ".join(shlex.quote(str(item)) for item in command))
 
 """
 Used in the remote machine for link updating, initializing links, damaging and recovering links and other functionalities。
@@ -34,7 +54,8 @@ def sn_get_down_satellite(current_sat_id, current_orbit_id, sat_num):
 
 
 def sn_ISL_establish(current_sat_id, current_orbit_id, container_id_list,
-                     orbit_num, sat_num, constellation_size, matrix, bw, loss):
+                     orbit_num, sat_num, constellation_size, matrix, bw, loss,
+                     link_profile=None):
     current_id = current_orbit_id * sat_num + current_sat_id
     isl_idx = current_id * 2 + 1
     # Establish intra-orbit ISLs
@@ -88,13 +109,12 @@ def sn_ISL_establish(current_sat_id, current_orbit_id, container_id_list,
                   str(current_orbit_id * sat_num + current_sat_id + 1) +
                   "-eth" + str(down_orbit_id * sat_num + down_sat_id + 1) +
                   " up")
-        sn_checked_system("docker exec -i " +
-                  str(container_id_list[current_orbit_id * sat_num +
-                                        current_sat_id]) +
-                  " tc qdisc add dev B" +
-                  str(current_orbit_id * sat_num + current_sat_id + 1) +
-                  "-eth" + str(down_orbit_id * sat_num + down_sat_id + 1) +
-                  " root netem delay " + str(delay) + "ms loss " + str(loss) + "% rate " + str(bw) + "Gbit")
+        sn_apply_link_qdisc(
+            container_id_list[current_orbit_id * sat_num + current_sat_id],
+            "B{}-eth{}".format(current_orbit_id * sat_num + current_sat_id + 1,
+                                down_orbit_id * sat_num + down_sat_id + 1),
+            delay, bw, loss,
+            profile_for(link_profile, "inter_satellite", "a_to_b"))
     print('[Add current node:]' + 'docker network connect ' + ISL_name + " " +
           str(container_id_list[current_orbit_id * sat_num + current_sat_id]) +
           " --ip 10." + str(address_16_23) + "." + str(address_8_15) + ".40")
@@ -125,12 +145,12 @@ def sn_ISL_establish(current_sat_id, current_orbit_id, container_id_list,
                                         down_sat_id]) + " ip link set dev B" +
                   str(down_orbit_id * sat_num + down_sat_id + 1) + "-eth" +
                   str(current_orbit_id * sat_num + current_sat_id + 1) + " up")
-        sn_checked_system("docker exec -i " +
-                  str(container_id_list[down_orbit_id * sat_num +
-                                        down_sat_id]) + " tc qdisc add dev B" +
-                  str(down_orbit_id * sat_num + down_sat_id + 1) + "-eth" +
-                  str(current_orbit_id * sat_num + current_sat_id + 1) +
-                  " root netem delay " + str(delay) + "ms loss " + str(loss) + "% rate " + str(bw) + "Gbit")
+        sn_apply_link_qdisc(
+            container_id_list[down_orbit_id * sat_num + down_sat_id],
+            "B{}-eth{}".format(down_orbit_id * sat_num + down_sat_id + 1,
+                                current_orbit_id * sat_num + current_sat_id + 1),
+            delay, bw, loss,
+            profile_for(link_profile, "inter_satellite", "b_to_a"))
     print('[Add down node:]' + 'docker network connect ' + ISL_name + " " +
           str(container_id_list[down_orbit_id * sat_num + down_sat_id]) +
           " --ip 10." + str(address_16_23) + "." + str(address_8_15) + ".10")
@@ -192,13 +212,12 @@ def sn_ISL_establish(current_sat_id, current_orbit_id, container_id_list,
                   str(current_orbit_id * sat_num + current_sat_id + 1) +
                   "-eth" + str(right_orbit_id * sat_num + right_sat_id + 1) +
                   " up")
-        sn_checked_system("docker exec -i " +
-                  str(container_id_list[current_orbit_id * sat_num +
-                                        current_sat_id]) +
-                  " tc qdisc add dev B" +
-                  str(current_orbit_id * sat_num + current_sat_id + 1) +
-                  "-eth" + str(right_orbit_id * sat_num + right_sat_id + 1) +
-                  " root netem delay " + str(delay) + "ms loss " + str(loss) + "% rate " + str(bw) + "Gbit")
+        sn_apply_link_qdisc(
+            container_id_list[current_orbit_id * sat_num + current_sat_id],
+            "B{}-eth{}".format(current_orbit_id * sat_num + current_sat_id + 1,
+                                right_orbit_id * sat_num + right_sat_id + 1),
+            delay, bw, loss,
+            profile_for(link_profile, "inter_satellite", "a_to_b"))
     print('[Add current node:]' + 'docker network connect ' + ISL_name + " " +
           str(container_id_list[current_orbit_id * sat_num + current_sat_id]) +
           " --ip 10." + str(address_16_23) + "." + str(address_8_15) + ".30")
@@ -230,13 +249,12 @@ def sn_ISL_establish(current_sat_id, current_orbit_id, container_id_list,
                                         right_sat_id]) + " ip link set dev B" +
                   str(right_orbit_id * sat_num + right_sat_id + 1) + "-eth" +
                   str(current_orbit_id * sat_num + current_sat_id + 1) + " up")
-        sn_checked_system("docker exec -i " +
-                  str(container_id_list[right_orbit_id * sat_num +
-                                        right_sat_id]) +
-                  " tc qdisc add dev B" +
-                  str(right_orbit_id * sat_num + right_sat_id + 1) + "-eth" +
-                  str(current_orbit_id * sat_num + current_sat_id + 1) +
-                  " root netem delay " + str(delay) + "ms loss " + str(loss) + "% rate " + str(bw) + "Gbit")
+        sn_apply_link_qdisc(
+            container_id_list[right_orbit_id * sat_num + right_sat_id],
+            "B{}-eth{}".format(right_orbit_id * sat_num + right_sat_id + 1,
+                                current_orbit_id * sat_num + current_sat_id + 1),
+            delay, bw, loss,
+            profile_for(link_profile, "inter_satellite", "b_to_a"))
     print('[Add right node:]' + 'docker network connect ' + ISL_name + " " +
           str(container_id_list[right_orbit_id * sat_num + right_sat_id]) +
           " --ip 10." + str(address_16_23) + "." + str(address_8_15) + ".20")
@@ -248,7 +266,7 @@ def sn_ISL_establish(current_sat_id, current_orbit_id, container_id_list,
 
 
 def sn_establish_ISLs(container_id_list, matrix, orbit_num, sat_num,
-                      constellation_size, bw, loss):
+                      constellation_size, bw, loss, link_profile=None):
     ISL_threads = []
     for current_orbit_id in range(0, orbit_num):
         for current_sat_id in range(0, sat_num):
@@ -256,7 +274,7 @@ def sn_establish_ISLs(container_id_list, matrix, orbit_num, sat_num,
                 target=sn_ISL_establish,
                 args=(current_sat_id, current_orbit_id, container_id_list,
                       orbit_num, sat_num, constellation_size, matrix, bw,
-                      loss))
+                      loss, link_profile))
             ISL_threads.append(ISL_thread)
     for ISL_thread in ISL_threads:
         ISL_thread.start()
@@ -275,7 +293,6 @@ def sn_get_param(file_):
 
 
 def sn_get_container_info():
-    import subprocess
     rows = subprocess.check_output([
         'docker', 'ps', '--filter',
         'label=com.docker.swarm.service.name=constellation-test',
@@ -287,7 +304,7 @@ def sn_get_container_info():
 
 
 def sn_establish_GSL(container_id_list, matrix, GS_num, constellation_size, bw,
-                     loss):
+                     loss, link_profile=None):
     # starting links among satellites and ground stations
     for i in range(1, constellation_size + 1):
         for j in range(constellation_size + 1,
@@ -325,9 +342,11 @@ def sn_establish_GSL(container_id_list, matrix, GS_num, constellation_size, bw,
                 sn_checked_system("docker exec -i " + str(container_id_list[i - 1]) +
                           " ip link set dev B" + str(i - 1 + 1) + "-eth" +
                           str(j) + " up")
-                sn_checked_system("docker exec -i " + str(container_id_list[i - 1]) +
-                          " tc qdisc add dev B" + str(i - 1 + 1) + "-eth" +
-                          str(j) + " root netem delay " + str(delay) + "ms loss " + str(loss) + "% rate " + str(bw) + "Gbit")
+                sn_apply_link_qdisc(
+                    container_id_list[i - 1], "B{}-eth{}".format(i, j),
+                    delay, bw, loss,
+                    profile_for(link_profile, "satellite_ground",
+                                "satellite_to_ground"))
             print('[Add current node:]' + 'docker network connect ' +
                   GSL_name + " " + str(container_id_list[i - 1]) + " --ip 9." +
                   str(address_16_23) + "." + str(address_8_15) + ".50")
@@ -351,11 +370,11 @@ def sn_establish_GSL(container_id_list, matrix, GS_num, constellation_size, bw,
                 sn_checked_system("docker exec -i " + str(container_id_list[j - 1]) +
                           " ip link set dev B" + str(j) + "-eth" +
                           str(i - 1 + 1) + " up")
-                sn_checked_system("docker exec -i " + str(container_id_list[j - 1]) +
-                          " tc qdisc add dev B" + str(j) + "-eth" +
-                          str(i - 1 + 1) + " root netem delay " + str(delay) +
-                          "ms loss " + str(loss) + "% rate " + str(bw) +
-                          "Gbit")
+                sn_apply_link_qdisc(
+                    container_id_list[j - 1], "B{}-eth{}".format(j, i),
+                    delay, bw, loss,
+                    profile_for(link_profile, "satellite_ground",
+                                "ground_to_satellite"))
             print('[Add right node:]' + 'docker network connect ' + GSL_name +
                   " " + str(container_id_list[j - 1]) + " --ip 9." +
                   str(address_16_23) + "." + str(address_8_15) + ".60")
@@ -427,7 +446,7 @@ def sn_copy_run_conf_to_each_container(container_id_list, sat_node_number,
 def sn_damage_link(sat_index, container_id_list):
     with os.popen(
             "docker exec -i " + str(container_id_list[sat_index]) +
-            " ifconfig | sed 's/[ \t].*//;/^\(eth0\|\)\(lo\|\)$/d'") as f:
+            " ifconfig | sed 's/[ \t].*//;/^\\(eth0\\|\\)\\(lo\\|\\)$/d'") as f:
         ifconfig_output = f.readlines()
         for intreface in range(0, len(ifconfig_output), 2):
             sn_checked_system("docker exec -i " + str(container_id_list[sat_index]) +
@@ -459,7 +478,7 @@ def sn_recover_link(
 ):
     with os.popen(
             "docker exec -i " + str(container_id_list[damaged_satellite]) +
-            " ifconfig | sed 's/[ \t].*//;/^\(eth0\|\)\(lo\|\)$/d'") as f:
+            " ifconfig | sed 's/[ \t].*//;/^\\(eth0\\|\\)\\(lo\\|\\)$/d'") as f:
         ifconfig_output = f.readlines()
         for i in range(0, len(ifconfig_output), 2):
             sn_checked_system("docker exec -i " +
@@ -477,19 +496,20 @@ def sn_del_network(network_name):
 
 
 def sn_stop_emulation():
-    import subprocess
     services = subprocess.check_output(['docker', 'service', 'ls', '--format', '{{.Name}}'], universal_newlines=True).splitlines()
     if 'constellation-test' in services:
-        subprocess.run(['docker', 'service', 'rm', 'constellation-test'], check=True)
+        # Deletion is best-effort because Swarm removes tasks asynchronously;
+        # the caller verifies the complete resource inventory afterward.
+        subprocess.run(['docker', 'service', 'rm', 'constellation-test'], check=False)
         sleep(3)
     ids = subprocess.check_output(['docker', 'ps', '-aq', '--filter',
         'label=com.docker.swarm.service.name=constellation-test'], universal_newlines=True).split()
     if ids:
-        subprocess.run(['docker', 'rm', '-f', *ids], check=True)
+        subprocess.run(['docker', 'rm', '-f', *ids], check=False)
     networks = subprocess.check_output(['docker', 'network', 'ls', '--filter',
         'label=starrynet.owner=constellation-test', '--format', '{{.ID}}'], universal_newlines=True).split()
     for network in networks:
-        subprocess.run(['docker', 'network', 'rm', network], check=True)
+        subprocess.run(['docker', 'network', 'rm', network], check=False)
 
 
 def sn_recover(damage_list, container_id_list, sat_loss):
@@ -506,7 +526,7 @@ def sn_recover(damage_list, container_id_list, sat_loss):
 
 
 def sn_update_delay(matrix, container_id_list,
-                    constellation_size):  # updating delays
+                    constellation_size, link_profile=None):  # updating delays
     delay_threads = []
     for row in range(len(matrix)):
         for col in range(row, len(matrix[row])):
@@ -515,13 +535,13 @@ def sn_update_delay(matrix, container_id_list,
                     delay_thread = CheckedThread(
                         target=sn_delay_change,
                         args=(row, col, matrix[row][col], container_id_list,
-                              constellation_size))
+                              constellation_size, link_profile))
                     delay_threads.append(delay_thread)
                 else:
                     delay_thread = CheckedThread(
                         target=sn_delay_change,
                         args=(col, row, matrix[col][row], container_id_list,
-                              constellation_size))
+                              constellation_size, link_profile))
                     delay_threads.append(delay_thread)
     for delay_thread in delay_threads:
         delay_thread.start()
@@ -531,26 +551,46 @@ def sn_update_delay(matrix, container_id_list,
 
 
 def sn_delay_change(link_x, link_y, delay, container_id_list,
-                    constellation_size):  # multi-thread updating delays
+                    constellation_size, link_profile=None):  # multi-thread updating delays
     import re
     for node, peer in ((link_x, link_y), (link_y, link_x)):
         cid = container_id_list[node]
         iface = "B" + str(node + 1) + "-eth" + str(peer + 1)
-        # netem change resets unspecified options; retain the configured rate/loss.
+        # Preserve configured impairment values. ``replace`` is idempotent when
+        # Docker has recreated an interface but its root qdisc is not yet (or
+        # is still) in the state expected by the topology scheduler.
         existing = subprocess.check_output([
             'docker', 'exec', cid, 'tc', 'qdisc', 'show', 'dev', iface], universal_newlines=True)
-        options = []
-        for option in ('loss', 'rate'):
-            match = re.search(r"\b" + option + r"\s+([0-9.]+(?:%|[KMGT]?bit))", existing)
-            if match:
-                options.extend([option, match.group(1)])
-        subprocess.run(['docker', 'exec', cid, 'tc', 'qdisc', 'change',
-                        'dev', iface, 'root', 'netem', 'delay', str(delay) + 'ms',
-                        *options], check=True)
+        if link_profile is not None:
+            link_type, first_direction, second_direction = direction_for_nodes(
+                link_x, link_y, constellation_size)
+            direction = first_direction if node == link_x else second_direction
+            settings = profile_for(link_profile, link_type, direction)
+            options = netem_arguments(float(delay), settings)
+        else:
+            options = ["delay", str(delay) + "ms"]
+            jitter_match = re.search(
+                r"\bdelay\s+[0-9.]+ms\s+([0-9.]+ms)", existing)
+            if jitter_match:
+                options.append(jitter_match.group(1))
+                distribution_match = re.search(
+                    r"\bdistribution\s+(\w+)", existing)
+                if distribution_match:
+                    options.extend(["distribution", distribution_match.group(1)])
+            for option, pattern in (
+                    ("loss", r"\bloss\s+([0-9.]+%)"),
+                    ("rate", r"\brate\s+([0-9.]+[KMGT]?bit)"),
+                    ("limit", r"\blimit\s+(\d+)")):
+                match = re.search(pattern, existing)
+                if match:
+                    options.extend([option, match.group(1)])
+        command = ['docker', 'exec', cid, 'tc', 'qdisc', 'replace',
+                   'dev', iface, 'root', 'netem'] + options
+        subprocess.run(command, check=True)
 
 
 if __name__ == '__main__':
-    if len(sys.argv) == 10:
+    if len(sys.argv) in (10, 11):
         orbit_num = int(sys.argv[1])
         sat_num = int(sys.argv[2])
         constellation_size = int(sys.argv[3])
@@ -560,20 +600,24 @@ if __name__ == '__main__':
         sat_ground_bandwidth = float(sys.argv[7])
         sat_ground_loss = float(sys.argv[8])
         current_topo_path = sys.argv[9]
+        link_profile = json.loads(sys.argv[10]) if len(sys.argv) == 11 else None
         matrix = sn_get_param(current_topo_path)
         container_id_list = sn_get_container_info()
         sn_establish_ISLs(container_id_list, matrix, orbit_num, sat_num,
-                          constellation_size, sat_bandwidth, sat_loss)
+                          constellation_size, sat_bandwidth, sat_loss,
+                          link_profile)
         sn_establish_GSL(container_id_list, matrix, GS_num, constellation_size,
-                         sat_ground_bandwidth, sat_ground_loss)
-    elif len(sys.argv) == 4:
+                         sat_ground_bandwidth, sat_ground_loss, link_profile)
+    elif len(sys.argv) in (4, 5):
         if sys.argv[3] == "update":
             current_delay_path = sys.argv[1]
             constellation_size = int(sys.argv[2])
+            link_profile = json.loads(sys.argv[4]) if len(sys.argv) == 5 else None
             matrix = sn_get_param(current_delay_path)
             container_id_list = sn_get_container_info()
-            sn_update_delay(matrix, container_id_list, constellation_size)
-        else:
+            sn_update_delay(matrix, container_id_list, constellation_size,
+                            link_profile)
+        elif len(sys.argv) == 4:
             constellation_size = int(sys.argv[1])
             GS_num = int(sys.argv[2])
             path = sys.argv[3]
