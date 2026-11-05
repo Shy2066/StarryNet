@@ -1,6 +1,7 @@
 # Prerequisites
 *.d
-
+artifacts
+starlink-5-5-550-53-grid-LeastDelay
 dataset
 
 # Object files
