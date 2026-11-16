@@ -6,6 +6,7 @@ author: Zeqi Lai (zeqilai@tsinghua.edu.cn) and Yangtao Deng (dengyt21@mails.tsin
 """
 from starrynet.sn_observer import *
 from starrynet.sn_utils import *
+from starrynet.resource_scope import OWNER_ENV, SERVICE_ENV, resource_identity
 
 
 class StarryNet():
@@ -14,9 +15,9 @@ class StarryNet():
                  configuration_file_path,
                  GS_lat_long,
                  hello_interval=10,
-                 AS=[]):
+                 AS=[], local=False, argv=None):
         # Initialize constellation information.
-        sn_args = sn_load_file(configuration_file_path, GS_lat_long)
+        sn_args = sn_load_file(configuration_file_path, GS_lat_long, argv)
         self.name = sn_args.cons_name
         self.satellite_altitude = sn_args.satellite_altitude
         self.inclination = sn_args.inclination
@@ -59,22 +60,33 @@ class StarryNet():
                                  GS_lat_long, self.antenna_inclination,
                                  self.intra_routing, self.hello_interval,
                                  self.AS)
-        self.docker_service_name = 'constellation-test'
+        self.owner_id, self.docker_service_name = resource_identity(os.environ)
         self.isl_idx = 0
         self.ISL_hub = 'ISL_hub'
         self.container_id_list = []
         self.n_container = 0
         # Get ssh handler.
-        self.remote_ssh, self.transport = sn_init_remote_machine(
-            sn_args.remote_machine_IP, sn_args.remote_machine_username,
-            sn_args.remote_machine_password)
+        if local:
+            from starrynet.local import LocalExecutor, LocalFiles
+            self.remote_ssh = LocalExecutor(self.configuration_file_path)
+            self.remote_ssh.env_overrides.update({
+                OWNER_ENV: self.owner_id,
+                SERVICE_ENV: self.docker_service_name,
+            })
+            self.transport = self.remote_ssh
+            self.remote_ftp = LocalFiles(self.configuration_file_path)
+        else:
+            self.remote_ssh, self.transport = sn_init_remote_machine(
+                sn_args.remote_machine_IP, sn_args.remote_machine_username,
+                sn_args.remote_machine_password)
         if self.remote_ssh is None:
             print('Remote SSH login failure.')
             return
         if self.transport is None:
             print('Remote transport login failure.')
             return
-        self.remote_ftp = sn_init_remote_ftp(self.transport)
+        if not local:
+            self.remote_ftp = sn_init_remote_ftp(self.transport)
         if self.remote_ftp is None:
             print('Remote ftp login failure.')
             return
@@ -229,12 +241,25 @@ class StarryNet():
             self.damage_list, self.recovery_time, self.route_src,
             self.route_time, self.duration, self.utility_checking_time,
             self.perf_src, self.perf_des, self.perf_time)
+        self.emulation_thread = sn_thread
         sn_thread.start()
         sn_thread.join()
 
     def stop_emulation(self):
-        # Stop emulation in a new thread.
+        scheduler = getattr(self, 'emulation_thread', None)
+        scheduler_error = None
+        if scheduler is not None and scheduler.is_alive():
+            scheduler.request_stop()
+            try:
+                scheduler.join(timeout=30)
+            except BaseException as exc:
+                scheduler_error = exc
+            if scheduler.is_alive():
+                scheduler_error = scheduler_error or RuntimeError(
+                    'StarryNet scheduler did not stop within 30 seconds')
         sn_thread = sn_Emulation_Stop_Thread(self.remote_ssh, self.remote_ftp,
                                              self.file_path)
         sn_thread.start()
         sn_thread.join()
+        if scheduler_error is not None:
+            raise scheduler_error

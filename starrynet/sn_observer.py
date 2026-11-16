@@ -328,6 +328,8 @@ class Observer():
         Q.append("    ipv6;			# ... and to default IPv6 table")
         Q.append("}")
         Q.append("protocol kernel {")
+        # GSL setup briefly pauses kernel export; retain unrelated routes.
+        Q.append("    persist;")
         Q.append("    ipv4 {			# Connect protocol to IPv4 table by channel")
         Q.append(
             "        export all;	# Export to protocol. default is export none")
@@ -444,9 +446,9 @@ class Observer():
             osstr = "rm -f " + self.configuration_file_path+"/"+self.file_path+"/conf/bird-" + \
                 str(self.orbit_number*self.sat_number) + "-" + str(len(self.GS_lat_long)) + "/*"
             os.system(osstr)
-            sn_remote_cmd(remote_ssh, "mkdir ~/" + self.file_path + "/conf")
+            sn_remote_cmd(remote_ssh, "mkdir -p ~/" + self.file_path + "/conf")
             sn_remote_cmd(
-                remote_ssh, "mkdir ~/" + self.file_path + "/conf/bird-" +
+                remote_ssh, "mkdir -p ~/" + self.file_path + "/conf/bird-" +
                 str(self.orbit_number * self.sat_number) + "-" +
                 str(len(self.GS_lat_long)))
         else:
@@ -454,9 +456,9 @@ class Observer():
                         "/conf/bird-" +
                         str(self.orbit_number * self.sat_number) + "-" +
                         str(len(self.GS_lat_long)))
-            sn_remote_cmd(remote_ssh, "mkdir ~/" + self.file_path + "/conf")
+            sn_remote_cmd(remote_ssh, "mkdir -p ~/" + self.file_path + "/conf")
             sn_remote_cmd(
-                remote_ssh, "mkdir ~/" + self.file_path + "/conf/bird-" +
+                remote_ssh, "mkdir -p ~/" + self.file_path + "/conf/bird-" +
                 str(self.orbit_number * self.sat_number) + "-" +
                 str(len(self.GS_lat_long)))
         path = self.configuration_file_path + "/" + self.file_path + "/delay/1.txt"
@@ -489,6 +491,7 @@ class Observer():
                 Q.append("    ipv6;			# ... and to default IPv6 table")
                 Q.append("}")
                 Q.append("protocol kernel {")
+                Q.append("    persist;")
                 Q.append(
                     "    ipv4 {			# Connect protocol to IPv4 table by channel")
                 Q.append(
