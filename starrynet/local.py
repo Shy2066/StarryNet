@@ -1,14 +1,18 @@
 """Local equivalents of the SSH command and SFTP interfaces used by StarryNet."""
 from pathlib import Path
+import json
+import os
 import shlex
 import shutil
 import subprocess
 import sys
+import time
 
 
 class LocalExecutor:
     def __init__(self, root):
         self.root = Path(root).resolve()
+        self.env_overrides = {}
 
     def run(self, command, allowed_returncodes=(0,)):
         # Upstream assumes SSH starts in ~. Keep local files inside this run.
@@ -17,10 +21,29 @@ class LocalExecutor:
             command = command.replace('mkdir ', 'mkdir -p ', 1)
         if command.startswith('python3 '):
             command = shlex.quote(sys.executable) + command[len('python3'):]
+        started_ns = int(time.monotonic() * 1e9)
+        environment = os.environ.copy()
+        environment.update(self.env_overrides)
+        # Dynamic GSL creation runs here directly, rather than through the
+        # orchestrater subprocess that handles the initial links.
+        if (environment.get('STARRYNET_DISABLE_MASQUERADE') == '1' and
+                command.startswith('docker network create --label starrynet.owner=constellation-test ')):
+            if 'com.docker.network.bridge.enable_ip_masquerade=true' in command:
+                raise ValueError('Replay network explicitly enables masquerade')
+            if 'com.docker.network.bridge.enable_ip_masquerade=false' not in command:
+                command += ' --opt com.docker.network.bridge.enable_ip_masquerade=false'
         result = subprocess.run(command, shell=True, executable='/bin/bash',
                                 cwd=self.root, universal_newlines=True,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                timeout=600)
+                                timeout=600, env=environment)
+        finished_ns = int(time.monotonic() * 1e9)
+        with (self.root / 'commands.jsonl').open('a') as log:
+            log.write(json.dumps({
+                'command': command, 'start_monotonic_ns': started_ns,
+                'end_monotonic_ns': finished_ns, 'returncode': result.returncode,
+                'clock_domain': 'CLOCK_MONOTONIC',
+                'env_overrides': dict(self.env_overrides),
+            }, sort_keys=True) + '\n')
         with (self.root / 'commands.log').open('a') as log:
             log.write(f'$ {command}\n{result.stdout}{result.stderr}\n')
         if result.returncode not in allowed_returncodes:

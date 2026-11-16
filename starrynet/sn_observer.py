@@ -328,6 +328,8 @@ class Observer():
         Q.append("    ipv6;			# ... and to default IPv6 table")
         Q.append("}")
         Q.append("protocol kernel {")
+        # GSL setup briefly pauses kernel export; retain unrelated routes.
+        Q.append("    persist;")
         Q.append("    ipv4 {			# Connect protocol to IPv4 table by channel")
         Q.append(
             "        export all;	# Export to protocol. default is export none")
@@ -489,6 +491,7 @@ class Observer():
                 Q.append("    ipv6;			# ... and to default IPv6 table")
                 Q.append("}")
                 Q.append("protocol kernel {")
+                Q.append("    persist;")
                 Q.append(
                     "    ipv4 {			# Connect protocol to IPv4 table by channel")
                 Q.append(

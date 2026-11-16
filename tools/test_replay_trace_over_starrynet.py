@@ -6,20 +6,25 @@ import json
 import socket
 import struct
 import sys
+import threading
 import tempfile
 import unittest
 from unittest import mock
 from pathlib import Path
+from collections import deque
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from replay_trace_over_starrynet import (
+    AgentProcess,
     ReplayError,
     GS,
     P2_CONFIG,
     build_sessions,
     check_frozen_config,
     cmd_plan,
+    cmd_run,
+    append_attempt,
     final_route_snapshot,
     allocate_recovery_session,
     rebase_runtime_schedule,
@@ -29,6 +34,7 @@ from replay_trace_over_starrynet import (
     next_attempt_number,
     parse_args,
     runtime_source_hashes,
+    run_sample_counts,
     load_sample_events,
     verification_traffic_summary,
     read_trace,
@@ -42,7 +48,7 @@ from replay_trace_over_starrynet import (
     validate_trace,
     wait_for_satellite_route,
 )
-from e_replay_agent import Endpoint, monotonic_ns, packet, unpack
+from e_replay_agent import Endpoint, RouteMonitor, monotonic_ns, packet, unpack
 
 
 class ReplayTraceCoreTests(unittest.TestCase):
@@ -264,6 +270,156 @@ class ReplayTraceCoreTests(unittest.TestCase):
                             for command in qdisc))
         self.assertTrue(all("delay 10.85ms loss 1% rate 5Gbit" in command
                             for command in qdisc))
+
+    def test_generated_kernel_configs_preserve_routes_during_gsl_setup(self):
+        from starrynet import sn_observer
+
+        for autonomous_systems in ([[1, 3]], [[2]]):
+            with self.subTest(autonomous_systems=autonomous_systems), \
+                    tempfile.TemporaryDirectory() as directory:
+                observer = sn_observer.Observer.__new__(sn_observer.Observer)
+                observer.configuration_file_path = directory
+                observer.file_path = "topology"
+                observer.intra_routing = "OSPF"
+                observer.orbit_number = 1
+                observer.sat_number = 1
+                observer.GS_lat_long = [[0, 0], [1, 1]]
+                observer.AS = autonomous_systems
+                observer.hello_interval = 1
+                matrix = [[0, 1, 1], [1, 0, 0], [1, 0, 0]]
+                with mock.patch.object(sn_observer, "sn_remote_cmd"), \
+                        mock.patch.object(sn_observer, "sn_get_param", return_value=matrix):
+                    observer.generate_conf(object(), mock.Mock())
+                files = list((Path(directory) / "topology" / "conf"
+                              / "bird-1-2").glob("B*.conf"))
+                self.assertEqual(len(files), 3 if len(autonomous_systems[0]) == 2 else 1)
+                for path in files:
+                    config = path.read_text()
+                    self.assertRegex(config, r"protocol kernel \{\s+persist;\s+ipv4")
+                    self.assertIn("export all;", config)
+
+    def test_local_commands_record_monotonic_execution_intervals(self):
+        from starrynet.local import LocalExecutor
+
+        for returncode in (0, 7):
+            with self.subTest(returncode=returncode), \
+                    tempfile.TemporaryDirectory() as directory, \
+                    mock.patch("starrynet.local.subprocess.run", return_value=mock.Mock(
+                        returncode=returncode, stdout="output", stderr="error")), \
+                    mock.patch("starrynet.local.time.monotonic", side_effect=[1.0, 2.0]):
+                executor = LocalExecutor(directory)
+                if returncode:
+                    with self.assertRaises(RuntimeError):
+                        executor.run("true")
+                else:
+                    executor.run("true")
+                record = json.loads((Path(directory) / "commands.jsonl").read_text())
+                self.assertEqual(record["command"], "true")
+                self.assertEqual(record["start_monotonic_ns"], 1000000000)
+                self.assertEqual(record["end_monotonic_ns"], 2000000000)
+                self.assertEqual(record["returncode"], returncode)
+                self.assertEqual(record["clock_domain"], "CLOCK_MONOTONIC")
+                self.assertIn("$ true", (Path(directory) / "commands.log").read_text())
+
+    def test_route_monitor_records_kernel_events_and_unexpected_exit(self):
+        monitor = RouteMonitor("remote", "9.26.26.10")
+        monitor.process = mock.Mock(
+            stdout=io.StringIO("Deleted 9.26.26.0/24 via 9.2.13.50\nB27-eth13 DOWN\n"),
+            stderr=io.StringIO("monitor ended"))
+        monitor.process.wait.return_value = 1
+        with mock.patch("e_replay_agent.emit") as emit, \
+                mock.patch("e_replay_agent.monotonic_ns", return_value=123):
+            monitor.read_changes()
+        records = [call[0][0] for call in emit.call_args_list]
+        self.assertEqual([r["type"] for r in records], [
+            "route_change", "route_change", "route_monitor_error"])
+        self.assertEqual(records[0]["event"], "Deleted 9.26.26.0/24 via 9.2.13.50")
+        self.assertTrue(all(r["role"] == "remote" and r["observed_ns"] == 123
+                            and r["clock_domain"] == "CLOCK_MONOTONIC" for r in records))
+        self.assertEqual(records[-1]["returncode"], 1)
+
+    def test_route_monitor_missing_ip_is_a_diagnostic_error(self):
+        monitor = RouteMonitor("client", "9.27.27.10")
+        with mock.patch("e_replay_agent.subprocess.Popen", side_effect=OSError("ip missing")), \
+                mock.patch("e_replay_agent.emit") as emit:
+            monitor.start()
+            monitor.close()
+        record = emit.call_args[0][0]
+        self.assertEqual(record["type"], "route_monitor_error")
+        self.assertEqual(record["phase"], "start")
+        self.assertIsNone(monitor.process)
+
+    def test_route_monitor_reports_stderr_even_when_stopped_deliberately(self):
+        monitor = RouteMonitor("client", "9.27.27.10")
+        monitor.stop_requested.set()
+        monitor.process = mock.Mock(stdout=io.StringIO(""),
+                                    stderr=io.StringIO("netlink receive error No buffer space available"))
+        monitor.process.wait.return_value = -15
+        with mock.patch("e_replay_agent.emit") as emit:
+            monitor.read_changes()
+        record = emit.call_args[0][0]
+        self.assertEqual(record["type"], "route_monitor_error")
+        self.assertIn("No buffer space available", record["error"])
+
+    def test_route_monitor_start_snapshot_and_cleanup_are_read_only(self):
+        for snapshot_returncode in (0, 1):
+            with self.subTest(snapshot_returncode=snapshot_returncode):
+                monitor = RouteMonitor("client", "9.27.27.10")
+                process = mock.Mock(stdout=io.StringIO(""), stderr=io.StringIO(""))
+                process.poll.side_effect = [None, -15]
+                process.wait.return_value = -15
+                with mock.patch("e_replay_agent.subprocess.Popen", return_value=process) as popen, \
+                        mock.patch("e_replay_agent.threading.Thread") as thread, \
+                        mock.patch("e_replay_agent.subprocess.run", return_value=mock.Mock(
+                            stdout="snapshot", stderr="snapshot failed", returncode=snapshot_returncode)) as run, \
+                        mock.patch("e_replay_agent.emit") as emit:
+                    monitor.start()
+                    monitor.close()
+                self.assertEqual(popen.call_args[0][0], ["ip", "monitor", "route", "link"])
+                self.assertEqual([call[0][0] for call in run.call_args_list], [
+                    ["ip", "-4", "route", "show"], ["ip", "-o", "link", "show"]])
+                process.terminate.assert_called_once_with()
+                process.wait.assert_called_once_with(timeout=2)
+                thread.return_value.join.assert_called_once_with(timeout=2)
+                records = [call[0][0] for call in emit.call_args_list]
+                self.assertEqual(records[0]["type"], "route_monitor_started")
+                self.assertEqual(records[-1]["type"], "route_monitor_stopped")
+                snapshots = [row for row in records if row["type"] == "route_snapshot"]
+                self.assertEqual(len(snapshots), 2)
+                self.assertTrue(all(row["returncode"] == snapshot_returncode for row in snapshots))
+                errors = [row for row in records if row["type"] == "route_monitor_error"]
+                self.assertEqual(len(errors), 2 if snapshot_returncode else 0)
+
+    def test_route_diagnostics_do_not_interfere_with_agent_sample_messages(self):
+        agent = AgentProcess.__new__(AgentProcess)
+        diagnostic = {"type": "route_change", "role": "remote", "event": "route updated"}
+        prepared = {"type": "prepared", "sample_id": "0-0"}
+        completed = {"type": "sample_done", "sample_id": "0-0", "records": []}
+        agent.output = deque([diagnostic, prepared, completed])
+        agent.output_lock = threading.Lock()
+        agent.process = mock.Mock()
+        self.assertEqual(agent.wait_prepared("0-0", 1), prepared)
+        self.assertEqual(agent.wait_sample("0-0", 1), completed)
+        self.assertIn(diagnostic, agent.output)
+
+    def test_agent_send_errors_record_actual_and_scheduled_times(self):
+        with mock.patch("e_replay_agent.socket.socket") as socket_factory, \
+                mock.patch("e_replay_agent.monotonic_ns", return_value=123456789), \
+                mock.patch("e_replay_agent.emit") as emit:
+            socket_factory.return_value.sendto.side_effect = OSError(101, "Network is unreachable")
+            endpoint = Endpoint("client", "127.0.0.1", 19999, 20000, 512, 0.0)
+            try:
+                with mock.patch.object(endpoint, "receive_until"):
+                    endpoint.run_sample("0-0", 123, 0, [
+                        {"sequence": 0, "direction": 1, "offset_ns": 0}])
+            finally:
+                endpoint.close()
+            errors = emit.call_args[0][0]["send_errors"]
+            self.assertEqual(len(errors), 1)
+            self.assertEqual(errors[0]["sequence"], 0)
+            self.assertEqual(errors[0]["observed_ns"], 123456789)
+            self.assertEqual(errors[0]["scheduled_offset_ns"], 0)
+            self.assertEqual(errors[0]["clock_domain"], "CLOCK_MONOTONIC")
 
     def test_dynamic_delay_update_replaces_root_qdisc(self):
         from starrynet import sn_orchestrater
@@ -716,21 +872,215 @@ class ReplayTraceCoreTests(unittest.TestCase):
                 {"action": "send", "direction": -1, "sequence": 1,
                  "observed_ns": 1900, "scheduled_offset_ns": 100000000},
             ]}
+            first_route_meta = {
+                "route_before_sample": "9.27.27.60 dev B26-eth13 src 9.26.26.50\n",
+                "route_wait_seconds": 1.25,
+                "route_wait_timeout_seconds": 30.0,
+            }
             first = write_sample_result(manifest, sample, "session-0001",
-                                        "attempt-1", client, remote, 0, {})
+                                        "attempt-1", client, remote, 0,
+                                        first_route_meta)
             self.assertEqual(first["status"], "success")
             self.assertTrue(sample_is_valid(manifest, "0-0"))
+            first_attempt = (root / "samples" / "0-0" / "attempts"
+                             / "attempt-1" / "evidence.json")
+            for path in (first_attempt, root / "samples" / "0-0" / "evidence.json"):
+                saved = json.loads(path.read_text(encoding="utf-8"))
+                for key, value in first_route_meta.items():
+                    self.assertEqual(saved[key], value)
             root_trace_hash = __import__("hashlib").sha256(
                 (root / "samples" / "0-0" / "trace").read_bytes()).hexdigest()
+            root_evidence_hash = __import__("hashlib").sha256(
+                (root / "samples" / "0-0" / "evidence.json").read_bytes()).hexdigest()
             self.assertEqual(next_attempt_number(manifest, "0-0"), 2)
+            zero_reception_client = {"records": [
+                {"action": "send", "direction": 1, "sequence": 0,
+                 "observed_ns": 3000, "scheduled_offset_ns": 0},
+            ]}
+            zero_reception_remote = {"records": [
+                {"action": "send", "direction": -1, "sequence": 1,
+                 "observed_ns": 3100, "scheduled_offset_ns": 100000000},
+            ]}
+            second_route_meta = {
+                "route_before_sample": "9.27.27.60 dev B26-eth7 src 9.26.26.50\n",
+                "route_wait_seconds": 0.0,
+                "route_wait_timeout_seconds": 30.0,
+            }
             second = write_sample_result(manifest, sample, "session-0001",
-                                         "attempt-2", None, None, 0, {},
-                                         status_override="infrastructure_failure",
-                                         error_type="test", error_message="expected")
-            self.assertEqual(second["status"], "infrastructure_failure")
+                                         "attempt-2", zero_reception_client,
+                                         zero_reception_remote, 0,
+                                         second_route_meta)
+            self.assertEqual(second["status"], "failure")
+            self.assertEqual(second["error_type"], "no_endpoint_reception")
             self.assertEqual(next_attempt_number(manifest, "0-0"), 3)
             self.assertEqual(root_trace_hash, __import__("hashlib").sha256(
                 (root / "samples" / "0-0" / "trace").read_bytes()).hexdigest())
+            self.assertEqual(root_evidence_hash, __import__("hashlib").sha256(
+                (root / "samples" / "0-0" / "evidence.json").read_bytes()).hexdigest())
+            self.assertTrue(sample_is_valid(manifest, "0-0"))
+            attempt_root = root / "samples" / "0-0" / "attempts" / "attempt-2"
+            self.assertTrue((attempt_root / "trace").is_file())
+            self.assertTrue((attempt_root / "evidence.json").is_file())
+            saved = json.loads((attempt_root / "evidence.json").read_text(encoding="utf-8"))
+            for key, value in second_route_meta.items():
+                self.assertEqual(saved[key], value)
+
+    def test_no_endpoint_reception_failure_is_preserved_and_not_retried(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = self.write_trace(root, "0-0", [(0.0, 1), (0.1, -1)])
+            digest = __import__("hashlib").sha256(source.read_bytes()).hexdigest()
+            manifest = {"run_id": "run-test", "run_dir": str(root)}
+            sample = {"sample_id": "0-0", "class_id": 0, "repeat_id": 0,
+                      "source_path": str(source), "source_sha256": digest,
+                      "start_second": 15.0, "duration_seconds": 0.1,
+                      "event_count": 2}
+            client = {"records": [
+                {"action": "send", "direction": 1, "sequence": 0,
+                 "observed_ns": 1000, "scheduled_offset_ns": 0},
+            ]}
+            cases = [
+                ("attempt-1", {"records": [
+                    {"action": "send", "direction": -1, "sequence": 1,
+                     "observed_ns": 1100, "scheduled_offset_ns": 100000000},
+                ]}),
+                ("attempt-2", {"records": [], "send_errors": [
+                    {"sequence": 1, "error": "send failed"},
+                ]}),
+            ]
+            for attempt_id, remote in cases:
+                evidence = write_sample_result(
+                    manifest, sample, "session-0001", attempt_id,
+                    client, remote, 0, {})
+                self.assertEqual(evidence["status"], "failure")
+                self.assertEqual(evidence["error_type"], "no_endpoint_reception")
+                attempt_root = (root / "samples" / "0-0" / "attempts"
+                                / attempt_id)
+                saved = json.loads(
+                    (attempt_root / "evidence.json").read_text(encoding="utf-8"))
+                for key in ("route_before_sample", "route_wait_seconds",
+                            "route_wait_timeout_seconds"):
+                    self.assertIsNone(saved[key])
+                self.assertEqual(len(saved["client_records"]),
+                                 len(client["records"]))
+                for saved_record, input_record in zip(
+                        saved["client_records"], client["records"]):
+                    for key in ("action", "direction", "sequence", "observed_ns"):
+                        self.assertEqual(saved_record[key], input_record[key])
+                    self.assertEqual(
+                        saved_record["scheduled_offset_seconds"],
+                        input_record["scheduled_offset_ns"] / 1e9)
+                self.assertEqual(saved["remote_records"], remote["records"])
+                self.assertEqual(saved["remote_send_errors"],
+                                 remote.get("send_errors", []))
+                self.assertTrue((attempt_root / "trace").is_file())
+                append_attempt(manifest, {
+                    "sample_id": "0-0", "attempt_id": attempt_id,
+                    "status": evidence["status"],
+                    "retryable": evidence["status"] == "infrastructure_failure",
+                })
+                self.assertFalse(retry_allowed(manifest, "0-0"))
+            self.assertFalse(sample_is_valid(manifest, "0-0"))
+
+    def test_status_override_precedes_no_endpoint_reception(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = self.write_trace(root, "0-0", [(0.0, 1), (0.1, -1)])
+            digest = __import__("hashlib").sha256(source.read_bytes()).hexdigest()
+            manifest = {"run_id": "run-test", "run_dir": str(root)}
+            sample = {"sample_id": "0-0", "class_id": 0, "repeat_id": 0,
+                      "source_path": str(source), "source_sha256": digest,
+                      "start_second": 15.0, "duration_seconds": 0.1,
+                      "event_count": 2}
+            client = {"records": [
+                {"action": "send", "direction": 1, "sequence": 0,
+                 "observed_ns": 1000, "scheduled_offset_ns": 0},
+            ]}
+            evidence = write_sample_result(
+                manifest, sample, "session-0001", "attempt-1", client,
+                {"records": []}, 0, {}, status_override="infrastructure_failure",
+                error_type="explicit_override", error_message="kept override")
+            self.assertEqual(evidence["status"], "infrastructure_failure")
+            self.assertEqual(evidence["error_type"], "explicit_override")
+            self.assertEqual(evidence["error_message"], "kept override")
+
+    def test_partial_reception_with_send_error_is_a_nonretryable_failure(self):
+        for endpoint_role, failed_sequence in (("client", 2), ("remote", 3)):
+            with self.subTest(endpoint_role=endpoint_role), \
+                    tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                source = self.write_trace(root, "0-0", [
+                    (0.0, 1), (0.1, -1), (0.2, 1), (0.3, -1)])
+                digest = __import__("hashlib").sha256(source.read_bytes()).hexdigest()
+                manifest = {"run_id": "run-test", "run_dir": str(root)}
+                sample = {"sample_id": "0-0", "class_id": 0, "repeat_id": 0,
+                          "source_path": str(source), "source_sha256": digest,
+                          "start_second": 15.0, "duration_seconds": 0.3,
+                          "event_count": 4}
+                client = {"records": [
+                    {"action": "send", "direction": 1, "sequence": 0,
+                     "observed_ns": 1000, "scheduled_offset_ns": 0},
+                    {"action": "recv", "direction": -1, "sequence": 1,
+                     "observed_ns": 2000, "scheduled_offset_ns": 100000000},
+                ]}
+                remote = {"records": [
+                    {"action": "recv", "direction": 1, "sequence": 0,
+                     "observed_ns": 1100, "scheduled_offset_ns": 0},
+                    {"action": "send", "direction": -1, "sequence": 1,
+                     "observed_ns": 1900, "scheduled_offset_ns": 100000000},
+                ]}
+                row = client if endpoint_role == "client" else remote
+                row["send_errors"] = [{"sequence": failed_sequence,
+                                       "error": "[Errno 101] Network is unreachable"}]
+                evidence = write_sample_result(
+                    manifest, sample, "session-0001", "attempt-1", client, remote, 0, {})
+                self.assertEqual(evidence["status"], "failure")
+                self.assertEqual(evidence["error_type"], "endpoint_transport_error")
+                attempt = root / "samples" / "0-0" / "attempts" / "attempt-1"
+                saved = json.loads((attempt / "evidence.json").read_text())
+                self.assertEqual(saved[endpoint_role + "_send_errors"], row["send_errors"])
+                self.assertTrue((attempt / "trace").is_file())
+                self.assertFalse(sample_is_valid(manifest, "0-0"))
+                append_attempt(manifest, {"sample_id": "0-0", "attempt_id": "attempt-1",
+                                          "status": evidence["status"], "retryable": False})
+                self.assertFalse(retry_allowed(manifest, "0-0"))
+
+    def test_partial_endpoint_reception_remains_success(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = self.write_trace(root, "0-0", [(0.0, 1), (0.1, -1)])
+            digest = __import__("hashlib").sha256(source.read_bytes()).hexdigest()
+            manifest = {"run_id": "run-test", "run_dir": str(root)}
+            sample = {"sample_id": "0-0", "class_id": 0, "repeat_id": 0,
+                      "source_path": str(source), "source_sha256": digest,
+                      "start_second": 15.0, "duration_seconds": 0.1,
+                      "event_count": 2}
+            cases = [
+                ("attempt-1", {"records": [
+                    {"action": "send", "direction": 1, "sequence": 0,
+                     "observed_ns": 1000, "scheduled_offset_ns": 0},
+                ]}, {"records": [
+                    {"action": "recv", "direction": 1, "sequence": 0,
+                     "observed_ns": 1100, "scheduled_offset_ns": 0},
+                ]}, 1, 0),
+                ("attempt-2", {"records": [
+                    {"action": "recv", "direction": -1, "sequence": 1,
+                     "observed_ns": 2000, "scheduled_offset_ns": 100000000},
+                ]}, {"records": [
+                    {"action": "send", "direction": -1, "sequence": 1,
+                     "observed_ns": 1900, "scheduled_offset_ns": 100000000},
+                ]}, 0, 1),
+            ]
+            for attempt_id, client, remote, outbound_received, inbound_received in cases:
+                evidence = write_sample_result(
+                    manifest, sample, "session-0001", attempt_id,
+                    client, remote, 0, {})
+                self.assertEqual(evidence["status"], "success")
+                self.assertEqual(evidence["outbound_received"],
+                                 outbound_received)
+                self.assertEqual(evidence["inbound_received"],
+                                 inbound_received)
+                self.assertTrue(sample_is_valid(manifest, "0-0"))
 
     def test_resume_does_not_retry_nonretryable_measurement(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -783,6 +1133,100 @@ class ReplayTraceCoreTests(unittest.TestCase):
                 client, remote, 0, {})
             self.assertEqual(evidence["status"], "infrastructure_failure")
             self.assertEqual(evidence["error_type"], "endpoint_transport_error")
+
+
+class RunSummaryTests(unittest.TestCase):
+    def test_counts_are_unique_and_do_not_treat_unknown_or_infrastructure_as_interruptions(self):
+        manifest = {"sessions": [
+            {"superseded_by": "new", "samples": [{"sample_id": "99-0"}]},
+            {"samples": [{"sample_id": "0-{}".format(i)} for i in range(5)]},
+            {"samples": [{"sample_id": "0-1"}]},
+        ]}
+        rows = [
+            {"sample_id": "0-0", "attempt_id": "attempt-1", "status": "success"},
+            {"sample_id": "0-0", "attempt_id": "attempt-2", "status": "failure",
+             "retryable": False, "network_loss_is_measurement": True},
+            {"sample_id": "0-1", "attempt_id": "attempt-1", "status": "failure",
+             "retryable": False, "network_loss_is_measurement": True},
+            {"sample_id": "0-2", "attempt_id": "attempt-1", "status": "infrastructure_failure",
+             "retryable": True, "network_loss_is_measurement": False},
+            {"sample_id": "0-3", "attempt_id": "attempt-1", "status": "failure",
+             "retryable": False},
+            {"sample_id": "preflight-0-0", "status": "success"},
+            {"sample_id": "99-0", "status": "success"},
+        ]
+        with mock.patch("replay_trace_over_starrynet.read_attempts", return_value=rows):
+            counts = run_sample_counts(manifest, {"0-0"}, {"0-0", "0-1", "0-3"})
+        self.assertEqual(counts, {"planned_samples": 5, "attempted_samples": 4,
+                                  "successful_samples": 1, "interrupted_samples": 1,
+                                  "other_attempted_samples": 2, "unattempted_samples": 1})
+
+    def test_latest_numeric_attempt_and_existing_valid_success_take_precedence(self):
+        manifest = {"sessions": [{"samples": [{"sample_id": "0-0"},
+                                                 {"sample_id": "0-1"}]}]}
+        rows = [{"sample_id": "0-0", "attempt_id": "attempt-10",
+                 "status": "infrastructure_failure", "retryable": True},
+                {"sample_id": "0-0", "attempt_id": "attempt-2", "status": "failure",
+                 "retryable": False, "network_loss_is_measurement": True}]
+        with mock.patch("replay_trace_over_starrynet.read_attempts", return_value=rows):
+            counts = run_sample_counts(manifest, {"0-1"}, {"0-0"})
+        self.assertEqual(counts["attempted_samples"], 2)
+        self.assertEqual(counts["successful_samples"], 1)
+        self.assertEqual(counts["interrupted_samples"], 0)
+        self.assertEqual(counts["other_attempted_samples"], 1)
+
+    def check_command_summary(self, failed_ids):
+        import replay_trace_over_starrynet as replay
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ids = {"0-{}".format(i) for i in range(50)}
+            manifest = {"run_dir": str(root), "manifest_path": str(root / "manifest.json"),
+                        "preflight": {"status": "passed"}, "session_seconds": 900,
+                        "sessions": [{"session_id": "session-0001", "samples": [
+                            {"sample_id": sid} for sid in sorted(ids)]}]}
+            for sid in ids:
+                append_attempt(manifest, {"sample_id": sid, "attempt_id": "attempt-1",
+                                          "status": "failure" if sid in failed_ids else "success",
+                                          "retryable": False, "network_loss_is_measurement": True})
+            before = (root / "attempts.jsonl").read_bytes()
+            stream = io.StringIO()
+            with mock.patch.object(replay, "load_manifest", return_value=manifest), \
+                    mock.patch.object(replay, "check_frozen_config"), \
+                    mock.patch.object(replay, "storage_guard", return_value={}), \
+                    mock.patch.object(replay, "sample_is_valid",
+                                      side_effect=lambda _m, sid: sid not in failed_ids), \
+                    mock.patch.object(replay, "retry_allowed", return_value=False), \
+                    mock.patch.object(replay, "session_evidence_is_valid", return_value=True), \
+                    mock.patch.object(replay, "run_session") as run, \
+                    contextlib.redirect_stdout(stream):
+                exit_code = cmd_run(type("Args", (), {"manifest": root / "manifest.json"})())
+            run.assert_not_called()
+            output = json.loads(stream.getvalue())
+            self.assertEqual(output["planned_samples"], 50)
+            self.assertEqual(output["attempted_samples"], 50)
+            self.assertEqual(output["successful_samples"], 50 - len(failed_ids))
+            self.assertEqual(output["interrupted_samples"], len(failed_ids))
+            self.assertEqual(output["other_attempted_samples"], 0)
+            self.assertEqual(output["unattempted_samples"], 0)
+            self.assertEqual(output["run_completed"], not bool(failed_ids))
+            self.assertEqual(exit_code, 1 if failed_ids else 0)
+            saved = json.loads((root / "manifest.json").read_text())
+            self.assertEqual(saved["status"], "incomplete_nonretryable" if failed_ids
+                             else "run_completed")
+            self.assertNotIn("attempted_samples", saved)
+            self.assertEqual((root / "attempts.jsonl").read_bytes(), before)
+            if failed_ids:
+                self.assertEqual(output["nonretryable_samples"], sorted(failed_ids))
+                self.assertEqual(output["retryable_samples"], [])
+                self.assertEqual(output["retry_exhausted_samples"], [])
+            else:
+                self.assertEqual(output["sessions"], 0)
+
+    def test_command_keeps_failure_status_exit_code_and_retry_lists(self):
+        self.check_command_summary({"0-1", "0-7", "0-46"})
+
+    def test_command_keeps_success_status_and_exit_code(self):
+        self.check_command_summary(set())
 
 
 if __name__ == "__main__":

@@ -11,6 +11,12 @@ except ImportError:
     from sn_thread import CheckedThread, WORKER_ERRORS
 
 def sn_checked_system(command):
+    # Routed replay traffic must keep its end-to-end TCP addresses as it
+    # crosses the Docker bridges. Opt in per local replay, not daemon-wide.
+    if (os.environ.get('STARRYNET_DISABLE_MASQUERADE') == '1' and
+            command.startswith('docker network create --label starrynet.owner=constellation-test ')):
+        command += ' --opt com.docker.network.bridge.enable_ip_masquerade=false'
+        print('[Routed replay network:]' + command)
     subprocess.run(command, shell=True, executable='/bin/bash', check=True)
 
 """

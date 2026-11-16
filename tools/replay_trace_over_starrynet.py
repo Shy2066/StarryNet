@@ -3,7 +3,7 @@
 
 The command has two deliberately separate responsibilities.  ``plan`` and
 ``verify`` are offline and safe to run without Docker.  ``run`` is the only
-subcommand that creates StarryNet resources.  It runs a pair of long-lived UDP
+subcommand that creates StarryNet resources.  It runs a pair of long-lived TCP/UDP
 agents in GS26/GS27 and records the client-side observation trace.
 """
 
@@ -51,6 +51,9 @@ REMOTE_UDP_PORT = 20000
 UDP_PORTS = (UDP_PORT, REMOTE_UDP_PORT)
 PAYLOAD_BYTES = 512
 TAIL_SECONDS = 0.5
+TCP_COMPLETION_TIMEOUT_SECONDS = 30.0
+TCP_CONNECT_TIMEOUT_SECONDS = 30.0
+TCP_STATE_INTERVAL_SECONDS = 0.5
 TIMESTAMP_TOLERANCE = 0.005
 GUARD_SECONDS = 0.5
 DISPATCH_LEAD_SECONDS = 0.5
@@ -325,9 +328,20 @@ def coverage_report(sessions):
     return result
 
 
-def make_config(session_seconds):
+def loss_percent_arg(value):
+    loss = float(value)
+    if not 0 <= loss <= 100:
+        raise argparse.ArgumentTypeError("link loss must be finite and between 0 and 100 percent")
+    return loss
+
+
+def make_config(session_seconds, link_loss_percent=None):
     config = dict(P2_CONFIG)
     config["Duration (s)"] = int(session_seconds)
+    if link_loss_percent is not None:
+        loss = loss_percent_arg(link_loss_percent)
+        config['satellite link loss ("X"% )'] = loss
+        config['sat-ground loss ("X"% )'] = loss
     return config
 
 
@@ -347,9 +361,18 @@ def build_manifest(args, files, sessions, run_dir, mode):
     return {
         "schema_version": SCHEMA_VERSION,
         "plan_version": PLAN_VERSION,
-        "dataset_id": "E_v4_dynamic_replay",
+        "dataset_id": ("E_v4_dynamic_replay_tcp" if getattr(args, "transport", "tcp") == "tcp"
+                       else "E_v4_dynamic_replay"),
         "created_utc": utc_now(),
         "mode": mode,
+        "transport": getattr(args, "transport", "tcp"),
+        "docker_bridge_masquerade": getattr(args, "transport", "tcp") != "tcp",
+        "transport_ports": list(UDP_PORTS),
+        "tcp_completion_timeout_seconds": TCP_COMPLETION_TIMEOUT_SECONDS,
+        "tcp_connect_timeout_seconds": TCP_CONNECT_TIMEOUT_SECONDS,
+        "tcp_state_interval_seconds": (TCP_STATE_INTERVAL_SECONDS
+                                       if getattr(args, "transport", "tcp") == "tcp" else None),
+        "trace_semantics": "client_application_events",
         "run_id": run_dir.name,
         "input_root": str(Path(args.input).resolve()),
         "dataset_output": str(Path(args.dataset_output).resolve()),
@@ -377,7 +400,7 @@ def build_manifest(args, files, sessions, run_dir, mode):
         "udp_ports": list(UDP_PORTS),
         "topology": {
             "ground_stations": GS,
-            "config": make_config(args.session_seconds),
+            "config": make_config(args.session_seconds, getattr(args, "link_loss_percent", None)),
             "dynamic_required": True,
             "engineering_pipeline_verified": False,
             "scientific_fidelity_verified": False,
@@ -438,10 +461,17 @@ def cmd_plan(args):
     atomic_write_json(run_dir / "manifest.json", manifest)
     frozen_config = run_dir / "frozen_config.json"
     atomic_write_json(frozen_config,
-                      {"schema_version": 1, "config": make_config(args.session_seconds),
+                      {"schema_version": 1, "config": manifest["topology"]["config"],
                        "ground_stations": GS, "payload_bytes": PAYLOAD_BYTES,
                        "udp_port": UDP_PORT, "udp_ports": list(UDP_PORTS),
-                       "agent_header_schema": "EV4-v1"})
+                       "agent_header_schema": "EV4-v1",
+                       "transport": manifest["transport"],
+                       "docker_bridge_masquerade": manifest["docker_bridge_masquerade"],
+                       "transport_ports": manifest["transport_ports"],
+                       "tcp_completion_timeout_seconds": TCP_COMPLETION_TIMEOUT_SECONDS,
+                       "tcp_connect_timeout_seconds": TCP_CONNECT_TIMEOUT_SECONDS,
+                       "tcp_state_interval_seconds": manifest["tcp_state_interval_seconds"],
+                       "trace_semantics": "client_application_events"})
     manifest["frozen_config_sha256"] = sha256_file(frozen_config)
     atomic_write_json(run_dir / "manifest.json", manifest)
     (run_dir / "attempts.jsonl").touch()
@@ -456,6 +486,8 @@ def load_manifest(path):
     if not path.is_file():
         raise ReplayError("manifest does not exist: " + str(path))
     value = json.loads(path.read_text(encoding="utf-8"))
+    if value.get("transport", "udp") not in ("tcp", "udp"):
+        raise ReplayError("unsupported replay transport")
     if value.get("schema_version") != SCHEMA_VERSION or value.get("plan_version") != PLAN_VERSION:
         raise ReplayError("unsupported E_v4 manifest schema or plan version")
     value["manifest_path"] = str(path)
@@ -564,6 +596,10 @@ def check_frozen_config(manifest):
     config = value.get("config", {})
     if config != manifest.get("topology", {}).get("config"):
         raise ReplayError("frozen configuration differs from manifest topology")
+    for key in ("transport", "docker_bridge_masquerade", "transport_ports", "tcp_completion_timeout_seconds",
+                "tcp_connect_timeout_seconds", "tcp_state_interval_seconds", "trace_semantics"):
+        if manifest.get(key) != value.get(key):
+            raise ReplayError("frozen transport configuration differs: " + key)
     if any(config.get(key) for key in (
             "remote_machine_IP", "remote_machine_username",
             "remote_machine_password")):
@@ -584,6 +620,13 @@ def sample_is_valid(manifest, sample_id):
         return False
 
 
+def replay_capture_count(pcap, transport):
+    # TCP packets can contain partial/multiple frames, ACKs and retransmissions.
+    # Its payload-packet count proves capture activity, not application delivery.
+    key = "tcp_payload_packet_count" if transport == "tcp" else "ev4_packet_count"
+    return int(pcap.get(key, 0))
+
+
 def session_evidence_is_valid(manifest, session):
     """Check the evidence needed to retain a completed session on resume."""
     session_dir = Path(manifest["run_dir"]) / "sessions" / session["session_id"]
@@ -594,7 +637,7 @@ def session_evidence_is_valid(manifest, session):
         pcap_path = session_dir / "client.pcap"
         return (summary.get("status") == "completed"
                 and summary.get("cleanup_verified") is True
-                and int(pcap.get("ev4_packet_count", 0)) > 0
+                and replay_capture_count(pcap, manifest.get("transport", "udp")) > 0
                 and int(pcap.get("bytes", 0)) >= 24
                 and pcap_path.is_file()
                 and pcap_path.stat().st_size == int(pcap.get("bytes", -1))
@@ -628,6 +671,23 @@ def docker_command(*args, capture=True, timeout=60, check=True, stdin=None):
         stderr = result.stderr.decode(errors="replace") if isinstance(result.stderr, bytes) else (result.stderr or "")
         raise ReplayError("docker command failed: " + stderr.strip())
     return result
+
+
+def inspect_replay_bridges():
+    result = docker_command("network", "ls", "--filter",
+                            "label=starrynet.owner=constellation-test", "--quiet")
+    identifiers = result.stdout.decode().split()
+    if not identifiers:
+        raise ReplayError("no StarryNet bridges available for routed TCP replay")
+    result = docker_command("network", "inspect", *identifiers)
+    networks = json.loads(result.stdout.decode())
+    rows = [{"name": n["Name"], "id": n["Id"], "driver": n["Driver"],
+             "options": n.get("Options") or {}} for n in networks]
+    bad = [n["name"] for n in rows if n["driver"] != "bridge" or
+           n["options"].get("com.docker.network.bridge.enable_ip_masquerade") != "false"]
+    if bad:
+        raise ReplayError("routed TCP replay requires no masquerade on bridges: " + ", ".join(bad))
+    return rows
 
 
 def docker_exec(cid, *args, timeout=60, check=True):
@@ -699,9 +759,13 @@ def check_docker_capabilities():
     return {"image": image, "capabilities": result.stdout.decode(errors="replace")}
 
 
-def make_runtime_config(session_dir, session_seconds):
+def make_runtime_config(session_dir, session_seconds, frozen_config=None):
     path = Path(session_dir) / "config.json"
-    atomic_write_json(path, make_config(session_seconds))
+    # Preflight has a shorter duration, but all link/routing settings must
+    # come from the same frozen plan as the full and recovery sessions.
+    config = dict(P2_CONFIG if frozen_config is None else frozen_config)
+    config["Duration (s)"] = int(session_seconds)
+    atomic_write_json(path, config)
     return path
 
 
@@ -876,13 +940,16 @@ def attachment_for_second(topology, second, ground_station=CLIENT_NODE):
 
 
 class AgentProcess:
-    def __init__(self, cid, role, peer_ip, session_dir, listen_port, peer_port):
+    def __init__(self, cid, role, peer_ip, session_dir, listen_port, peer_port,
+                 transport="udp", bind_address="0.0.0.0"):
         self.cid = str(cid)
         self.role = role
         self.peer_ip = peer_ip
         self.session_dir = Path(session_dir)
         self.listen_port = int(listen_port)
         self.peer_port = int(peer_port)
+        self.transport = transport
+        self.bind_address = bind_address
         self.process = None
         self.output = deque()
         self.output_lock = threading.Lock()
@@ -890,6 +957,7 @@ class AgentProcess:
         self._thread = None
         self._log_handle = None
         self.log_path = self.session_dir / (self.role + "_agent.jsonl")
+        self.remote_state_log = "/tmp/e-replay-v4/" + self.role + "_tcp_state.jsonl"
 
     def start(self):
         remote_script = "/tmp/e_replay_agent.py"
@@ -899,7 +967,13 @@ class AgentProcess:
                    "--listen-port", str(self.listen_port),
                    "--peer-port", str(self.peer_port),
                    "--payload-bytes", str(PAYLOAD_BYTES),
-                   "--tail-seconds", str(TAIL_SECONDS)]
+                   "--tail-seconds", str(TAIL_SECONDS),
+                   "--transport", self.transport, "--bind-address", self.bind_address,
+                   "--tcp-completion-timeout", str(TCP_COMPLETION_TIMEOUT_SECONDS),
+                   "--tcp-connect-timeout", str(TCP_CONNECT_TIMEOUT_SECONDS)]
+        if self.transport == "tcp":
+            command += ["--tcp-state-log", self.remote_state_log,
+                        "--tcp-state-interval", str(TCP_STATE_INTERVAL_SECONDS)]
         # ``text=`` is not accepted by Python 3.6's Popen; the older
         # ``universal_newlines`` spelling provides the same line-oriented
         # text I/O used by the agent command channel.
@@ -1065,13 +1139,52 @@ class AgentProcess:
             self.log_path.touch()
         return self.log_path
 
+    def write_tcp_state_log(self):
+        path = self.session_dir / (self.role + "_tcp_state.jsonl")
+        docker_cp(self.cid + ":" + self.remote_state_log, path)
+        return validate_tcp_state_log(path, self.role)
 
-def start_capture(cid, session_dir, interface):
+
+def validate_tcp_state_log(path, role):
+    path = Path(path)
+    samples, valid_samples, errors = set(), set(), set()
+    count = 0
+    with path.open(encoding="utf-8") as handle:
+        for line in handle:
+            row = json.loads(line)
+            if row.get("type") != "tcp_state" or row.get("role") != role:
+                raise ReplayError("invalid TCP state log identity: " + str(path))
+            count += 1
+            samples.add(row["sample_id"])
+            errors.update(row.get("errors", []))
+            info = row.get("tcp_info") or {}
+            if (all(info.get(k) is not None for k in (
+                    "rto_us", "unacked_segments", "snd_cwnd_segments", "total_retrans"))
+                    and row.get("outq_bytes") is not None
+                    and row.get("sndbuf_bytes") is not None):
+                valid_samples.add(row["sample_id"])
+    return {"path": str(path), "sha256": sha256_file(path), "rows": count,
+            "sample_ids": sorted(samples), "valid_sample_ids": sorted(valid_samples),
+            "errors": sorted(errors)}
+
+
+def require_tcp_state_diagnostics(summary):
+    if summary.get("tcp_state_errors"):
+        raise ReplayError("TCP state sampling failed: " + "; ".join(summary["tcp_state_errors"]))
+    expected = {row["sample_id"] for row in summary.get("sample_results", [])}
+    logs = summary.get("tcp_state_logs", {})
+    for role in ("client", "remote"):
+        if (not expected or not expected.issubset(set(logs.get(role, {}).get("valid_sample_ids", [])))
+                or logs.get(role, {}).get("errors")):
+            raise ReplayError("TCP state diagnostics incomplete: " + role)
+
+
+def start_capture(cid, session_dir, interface, transport="udp"):
     remote_dir = "/tmp/e-replay-v4"
     docker_exec(cid, "mkdir", "-p", remote_dir)
     remote_pcap = remote_dir + "/client.pcap"
     remote_log = remote_dir + "/tcpdump.log"
-    capture_filter = "udp port {0} or udp port {1}".format(*UDP_PORTS)
+    capture_filter = "{0} port {1} or {0} port {2}".format(transport, *UDP_PORTS)
     docker_exec(cid, "sh", "-c", "rm -f {0} {1}; tcpdump -i {4} -n -s 0 -U -w {0} '({2})' >{1} 2>&1 & echo $! >{3}".format(
         remote_pcap, remote_log, capture_filter, remote_dir + "/tcpdump.pid", interface))
     deadline = time.monotonic() + 10
@@ -1124,8 +1237,8 @@ def stop_capture(capture, session_dir):
 EV4_MAGIC = b"EV4\0"
 
 
-def _udp_payload_from_frame(frame, link_type, expected_ports):
-    """Return an EV4-candidate UDP payload from a classic PCAP frame.
+def _transport_payload_from_frame(frame, link_type, expected_ports, transport):
+    """Return an IPv4 TCP/UDP payload from a classic PCAP frame.
 
     StarryNet captures normally use Ethernet (DLT_EN10MB).  The additional
     Linux cooked, raw-IP and loopback layouts make the offline verifier useful
@@ -1169,18 +1282,28 @@ def _udp_payload_from_frame(frame, link_type, expected_ports):
     ip_header_bytes = (version_ihl & 0x0F) * 4
     if ip_header_bytes < 20 or len(frame) < offset + ip_header_bytes + 8:
         return None
-    if frame[offset + 9] != 17:  # UDP
+    if frame[offset + 9] != (6 if transport == "tcp" else 17):
         return None
-    udp_offset = offset + ip_header_bytes
-    source_port = int.from_bytes(frame[udp_offset:udp_offset + 2], "big")
-    destination_port = int.from_bytes(frame[udp_offset + 2:udp_offset + 4], "big")
+    transport_offset = offset + ip_header_bytes
+    source_port = int.from_bytes(frame[transport_offset:transport_offset + 2], "big")
+    destination_port = int.from_bytes(frame[transport_offset + 2:transport_offset + 4], "big")
     if {source_port, destination_port}.isdisjoint(set(expected_ports)):
         return None
-    udp_length = int.from_bytes(frame[udp_offset + 4:udp_offset + 6], "big")
+    if transport == "tcp":
+        if len(frame) < transport_offset + 20:
+            return None
+        header_bytes = (frame[transport_offset + 12] >> 4) * 4
+        ip_length = int.from_bytes(frame[offset + 2:offset + 4], "big")
+        if (header_bytes < 20 or ip_length < ip_header_bytes + header_bytes
+                or len(frame) < transport_offset + header_bytes
+                or int.from_bytes(frame[offset + 6:offset + 8], "big") & 0x1FFF):
+            return None
+        return frame[transport_offset + header_bytes:min(len(frame), offset + ip_length)]
+    udp_length = int.from_bytes(frame[transport_offset + 4:transport_offset + 6], "big")
     if udp_length < 8:
         return None
-    payload_end = min(len(frame), udp_offset + udp_length)
-    return frame[udp_offset + 8:payload_end]
+    payload_end = min(len(frame), transport_offset + udp_length)
+    return frame[transport_offset + 8:payload_end]
 
 
 def _classic_pcap_event_counts(path, expected_ports=UDP_PORTS):
@@ -1200,6 +1323,8 @@ def _classic_pcap_event_counts(path, expected_ports=UDP_PORTS):
     packet_count = 0
     udp_packet_count = 0
     ev4_packet_count = 0
+    tcp_packet_count = 0
+    tcp_payload_packet_count = 0
     while cursor < len(raw):
         if len(raw) - cursor < 16:
             raise ReplayError("truncated PCAP packet header: " + str(path))
@@ -1211,14 +1336,20 @@ def _classic_pcap_event_counts(path, expected_ports=UDP_PORTS):
         frame = raw[cursor:cursor + captured_length]
         cursor += captured_length
         packet_count += 1
-        payload = _udp_payload_from_frame(frame, link_type, expected_ports)
+        payload = _transport_payload_from_frame(frame, link_type, expected_ports, "udp")
         if payload is not None:
             udp_packet_count += 1
             if payload.startswith(EV4_MAGIC):
                 ev4_packet_count += 1
+        payload = _transport_payload_from_frame(frame, link_type, expected_ports, "tcp")
+        if payload is not None:
+            tcp_packet_count += 1
+            tcp_payload_packet_count += bool(payload)
     return {"packet_count": packet_count,
             "udp_packet_count": udp_packet_count,
             "ev4_packet_count": ev4_packet_count,
+            "tcp_packet_count": tcp_packet_count,
+            "tcp_payload_packet_count": tcp_payload_packet_count,
             "link_type": link_type}
 
 
@@ -1309,7 +1440,8 @@ def retry_allowed(manifest, sample_id):
                                + evidence.get("remote_send_errors", [])
                                + evidence.get("client_receive_errors", [])
                                + evidence.get("remote_receive_errors", []))
-            if (not evidence.get("client_observed_event_count", 0)
+            if (evidence.get("transport", "udp") == "udp"
+                    and not evidence.get("client_observed_event_count", 0)
                     and endpoint_errors):
                 return True
         except (OSError, ValueError, TypeError):
@@ -1366,6 +1498,8 @@ def write_sample_result(manifest, sample, session_id, attempt_id, client_row,
                               "scheduled_offset_seconds": record["scheduled_offset_ns"] / 1e9,
                               "observed_ns": record["observed_ns"],
                               "action": record["action"]})
+        if "send_completed_ns" in record:
+            output_records[-1]["send_completed_ns"] = record["send_completed_ns"]
     trace_path = attempt_root / "trace"
     trace_path.write_text("".join(trace_lines), encoding="utf-8")
     source_events, source_info = load_sample_events(sample)
@@ -1399,10 +1533,29 @@ def write_sample_result(manifest, sample, session_id, attempt_id, client_row,
         result_status = status_override
         result_error_type = error_type
         result_error_message = error_message
+    elif observed and remote_plus == 0 and client_minus == 0:
+        result_status = "failure"
+        result_error_type = "no_endpoint_reception"
+        result_error_message = "no packet reception was recorded at either endpoint"
+    elif observed and endpoint_errors:
+        result_status = "failure"
+        result_error_type = "endpoint_transport_error"
+        result_error_message = "endpoint transport errors occurred during the sample"
+    elif (manifest.get("transport") == "tcp" and observed and
+          (remote_plus != expected_plus or client_minus != expected_minus)):
+        result_status = "failure"
+        result_error_type = "tcp_incomplete_reception"
+        result_error_message = "TCP application frames were not fully received"
     elif observed:
         result_status = "success"
         result_error_type = None
         result_error_message = None
+    elif (manifest.get("transport") == "tcp" and
+          (remote_records or any(row.get("bytes_submitted", 0) > 0
+                                 for row in endpoint_errors if isinstance(row, dict)))):
+        result_status = "failure"
+        result_error_type = "tcp_incomplete_reception"
+        result_error_message = "TCP traffic was submitted but no complete client events remained"
     elif endpoint_errors:
         result_status = "infrastructure_failure"
         result_error_type = "endpoint_transport_error"
@@ -1421,10 +1574,19 @@ def write_sample_result(manifest, sample, session_id, attempt_id, client_row,
         "run_id": manifest["run_id"],
         "session_id": session_id,
         "attempt_id": attempt_id,
+        "transport": manifest.get("transport", "udp"),
+        "trace_semantics": "client_application_events",
+        "client_finished_ns": client_row.get("finished_ns"),
+        "client_tcp_state_summary": client_row.get("tcp_state_summary"),
+        "remote_tcp_state_summary": remote_row.get("tcp_state_summary"),
+        "remote_finished_ns": remote_row.get("finished_ns"),
         "simulation_start_second": sample["start_second"],
         "simulation_end_second": sample["start_second"] + sample["duration_seconds"],
         "wall_start_ns": runtime_meta.get("wall_start_ns"),
         "wall_end_ns": runtime_meta.get("wall_end_ns"),
+        "route_before_sample": runtime_meta.get("route_before_sample"),
+        "route_wait_seconds": runtime_meta.get("route_wait_seconds"),
+        "route_wait_timeout_seconds": runtime_meta.get("route_wait_timeout_seconds"),
         "source_event_count": len(source_events),
         "scheduled_event_count": len(source_events),
         "client_observed_event_count": len(observed),
@@ -1459,6 +1621,8 @@ def write_sample_result(manifest, sample, session_id, attempt_id, client_row,
         "remote_send_errors": remote_row.get("send_errors", []),
         "remote_receive_errors": remote_row.get("receive_errors", []),
     }
+    if runtime_meta.get("handover_control") is not None:
+        evidence["handover_control"] = runtime_meta["handover_control"]
     atomic_write_json(attempt_root / "evidence.json", evidence)
     if evidence["status"] == "success":
         # The root artifact is the latest successful attempt.  Previous
@@ -1488,6 +1652,8 @@ def write_failure_stub(manifest, sample, session_id, attempt_id, error):
         "session_id": session_id,
         "attempt_id": attempt_id,
         "source_event_count": sample.get("event_count"),
+        "transport": manifest.get("transport", "udp"),
+        "trace_semantics": "client_application_events",
         "scheduled_event_count": 0,
         "client_observed_event_count": 0,
         "remote_observed_event_count": 0,
@@ -1541,10 +1707,11 @@ def start_heartbeat(session_dir, session_id, worker_errors):
 
 
 def run_session(manifest, session, sample_specs, session_dir, session_seconds,
-                session_tail_seconds=SESSION_TAIL_SECONDS):
+                session_tail_seconds=SESSION_TAIL_SECONDS, sample_start_resolver=None):
     session_dir = Path(session_dir)
     session_dir.mkdir(parents=True, exist_ok=True)
-    config_path = make_runtime_config(session_dir, session_seconds)
+    config_path = make_runtime_config(session_dir, session_seconds,
+                                      manifest["topology"]["config"])
     sys.path.insert(0, str(ROOT))
     from starrynet.sn_synchronizer import StarryNet
     from starrynet.sn_thread import WORKER_ERRORS
@@ -1553,6 +1720,7 @@ def run_session(manifest, session, sample_specs, session_dir, session_seconds,
     client_agent = None
     remote_agent = None
     capture = None
+    remote_capture = None
     emulation_thread = None
     emulation_error = []
     session_anchor_ns = None
@@ -1574,12 +1742,22 @@ def run_session(manifest, session, sample_specs, session_dir, session_seconds,
         if not starrynet_resources_cleared(inventory_before):
             raise ReplayError("constellation-test already exists; refusing to claim an unowned StarryNet resource")
         sn = StarryNet(str(config_path), GS, 1, [[1, 27]], local=True, argv=[])
+        # Pass this only to this run's local worker subprocesses. The flag
+        # also reaches GSL creation during handover; unrelated runs and the
+        # host Docker firewall retain their existing settings.
+        sn.remote_ssh.env_overrides["STARRYNET_DISABLE_MASQUERADE"] = (
+            "0" if manifest.get("docker_bridge_masquerade", True) else "1")
+        summary["docker_bridge_masquerade"] = manifest.get("docker_bridge_masquerade", True)
         summary["phase"] = "create_nodes"
         sn.create_nodes()
         summary["phase"] = "create_links"
         sn.create_links()
         if WORKER_ERRORS:
             raise ReplayError("StarryNet worker error: " + str(WORKER_ERRORS))
+        if not manifest.get("docker_bridge_masquerade", True):
+            networks = inspect_replay_bridges()
+            atomic_write_json(session_dir / "bridge_networks.json", networks)
+            summary["bridge_networks"] = str(session_dir / "bridge_networks.json")
         summary["phase"] = "routing"
         sn.run_routing_deamon()
         if WORKER_ERRORS:
@@ -1628,17 +1806,30 @@ def run_session(manifest, session, sample_specs, session_dir, session_seconds,
         summary["handover_events"] = str(handover_path)
         # A GS26 handover deletes the old B26-eth* interface.  Binding tcpdump
         # to that initial device silently truncates a multi-hour capture after
-        # the first GS26 handover.  Capture the two dedicated EV4 UDP ports on
+        # the first GS26 handover. Capture the EV4 transport ports on
         # every interface in the GS26 namespace; the route snapshots above and
         # below still prove that their remote endpoint uses a satellite link.
         summary["capture_interface"] = "any"
-        summary["capture_scope"] = "GS26 namespace, EV4 UDP ports"
+        transport = manifest.get("transport", "udp")
+        summary["transport"] = transport
+        summary["trace_semantics"] = "client_application_events"
+        summary["capture_scope"] = "GS26 namespace, EV4 " + transport.upper() + " ports"
         summary["phase"] = "capture_agents"
-        capture = start_capture(client_cid, session_dir, "any")
+        capture = start_capture(client_cid, session_dir, "any", transport)
+        if transport == "tcp" and session["session_id"] == "preflight":
+            (session_dir / "remote_capture").mkdir(parents=True, exist_ok=True)
+            remote_capture = start_capture(
+                remote_cid, session_dir / "remote_capture", "any", transport)
+        client_ip = find_client_ip(client_cid)
+        if transport == "tcp" and not (
+                client_ip.startswith("9.26.26.") and peer_ip.startswith("9.27.27.")):
+            raise ReplayError("TCP replay requires stable GS26/GS27 endpoint addresses")
         client_agent = AgentProcess(client_cid, "client", peer_ip, session_dir,
-                                    UDP_PORT, REMOTE_UDP_PORT)
-        remote_agent = AgentProcess(remote_cid, "remote", find_client_ip(client_cid),
-                                    session_dir, REMOTE_UDP_PORT, UDP_PORT)
+                                    UDP_PORT, REMOTE_UDP_PORT, transport,
+                                    client_ip if transport == "tcp" else "0.0.0.0")
+        remote_agent = AgentProcess(remote_cid, "remote", client_ip,
+                                    session_dir, REMOTE_UDP_PORT, UDP_PORT, transport,
+                                    peer_ip if transport == "tcp" else "0.0.0.0")
         client_agent.start()
         remote_agent.start()
         emulation_thread = threading.Thread(target=lambda: _run_emulation(sn, emulation_error),
@@ -1712,6 +1903,17 @@ def run_session(manifest, session, sample_specs, session_dir, session_seconds,
                 # bounded lead is sufficient and is shared by both agents.
                 start_ns = max(planned_start_ns,
                                monotonic_ns() + int(DISPATCH_LEAD_SECONDS * 1e9))
+                if sample_start_resolver is not None:
+                    # A diagnostic may anchor an already-prepared connection
+                    # to an observed event. The topology scheduler keeps running.
+                    start_ns, anchor_meta = sample_start_resolver({
+                        "session_dir": session_dir, "topology": topology,
+                        "session_anchor_ns": session_anchor_ns, "sample": sample,
+                        "client_cid": client_cid, "remote_cid": remote_cid,
+                        "emulation_errors": emulation_error})
+                    if start_ns < monotonic_ns() + int(DISPATCH_LEAD_SECONDS * 1e9):
+                        raise ReplayError("diagnostic start anchor was missed; refusing to shift it")
+                    runtime_meta["handover_control"] = anchor_meta
                 runtime_sample["start_second"] = round(
                     (start_ns - session_anchor_ns) / 1e9, 6)
                 if runtime_sample["start_second"] + runtime_sample["duration_seconds"] > (
@@ -1742,8 +1944,10 @@ def run_session(manifest, session, sample_specs, session_dir, session_seconds,
                 last_offset_ns = max(
                     (int(event["offset_ns"]) for event in scheduled_events),
                     default=0)
+                receive_grace = (TCP_COMPLETION_TIMEOUT_SECONDS if transport == "tcp"
+                                 else TAIL_SECONDS)
                 sample_deadline_ns = (start_ns + last_offset_ns
-                                      + int((TAIL_SECONDS +
+                                      + int((receive_grace +
                                              SAMPLE_TIMEOUT_MARGIN_SECONDS) * 1e9))
                 timeout = max(
                     1.0, (sample_deadline_ns - monotonic_ns()) / 1e9)
@@ -1751,6 +1955,12 @@ def run_session(manifest, session, sample_specs, session_dir, session_seconds,
                 timeout = max(
                     1.0, (sample_deadline_ns - monotonic_ns()) / 1e9)
                 remote_row = remote_agent.wait_sample(sample["sample_id"], timeout)
+                if manifest.get("tcp_state_interval_seconds") is not None:
+                    for role, row in (("client", client_row), ("remote", remote_row)):
+                        state = row.get("tcp_state_summary") or {}
+                        if not state.get("tcp_info_rows") or state.get("errors"):
+                            summary.setdefault("tcp_state_errors", []).append(
+                                sample["sample_id"] + "/" + role + ": " + str(state))
                 runtime_meta["wall_end_ns"] = monotonic_ns()
                 evidence = write_sample_result(
                     manifest, runtime_sample, session["session_id"], attempt_id,
@@ -1812,6 +2022,20 @@ def run_session(manifest, session, sample_specs, session_dir, session_seconds,
         # copy their evidence before removing the Swarm service; deleting the
         # containers first makes an otherwise completed session fail with
         # "No such container" and can leave the PCAP footer unflushed.
+        if summary.get("bridge_networks"):
+            try:
+                networks = inspect_replay_bridges()
+                path = session_dir / "bridge_networks_after.json"
+                atomic_write_json(path, networks)
+                summary["bridge_networks_after"] = str(path)
+                summary["bridge_networks_after_sha256"] = sha256_file(path)
+                initial = json.loads(Path(summary["bridge_networks"]).read_text())
+                initial_names = {n["name"] for n in initial}
+                summary["new_bridge_names"] = sorted(
+                    n["name"] for n in networks if n["name"] not in initial_names)
+            except Exception as exc:
+                cleanup_failure = cleanup_failure or exc
+                summary.setdefault("cleanup_errors", []).append(str(exc))
         for role, agent in (("client", client_agent), ("remote", remote_agent)):
             if not agent:
                 continue
@@ -1825,11 +2049,25 @@ def run_session(manifest, session, sample_specs, session_dir, session_seconds,
             except OSError as exc:
                 cleanup_failure = cleanup_failure or exc
                 summary.setdefault("cleanup_errors", []).append(str(exc))
+            if agent.transport == "tcp":
+                try:
+                    summary.setdefault("tcp_state_logs", {})[role] = agent.write_tcp_state_log()
+                except Exception as exc:
+                    cleanup_failure = cleanup_failure or exc
+                    summary.setdefault("cleanup_errors", []).append(str(exc))
         if capture:
             try:
                 pcap = stop_capture(capture, session_dir)
                 if pcap is not None:
                     summary["pcap"] = validate_pcap(pcap)
+            except Exception as exc:
+                cleanup_failure = cleanup_failure or exc
+                summary.setdefault("cleanup_errors", []).append(str(exc))
+        if remote_capture:
+            try:
+                pcap = stop_capture(remote_capture, session_dir / "remote_capture")
+                if pcap is not None:
+                    summary["remote_pcap"] = validate_pcap(pcap)
             except Exception as exc:
                 cleanup_failure = cleanup_failure or exc
                 summary.setdefault("cleanup_errors", []).append(str(exc))
@@ -1914,6 +2152,14 @@ def cmd_preflight(args):
                           session_tail_seconds=0.0)
     if summary.get("status") != "completed":
         raise ReplayError("dynamic preflight did not complete")
+    if manifest.get("transport") == "tcp" and (
+            len(summary.get("sample_results", [])) != 3 or
+            any(row.get("status") != "success" for row in summary["sample_results"])):
+        raise ReplayError("TCP preflight samples incomplete; inspect preserved evidence")
+    if manifest.get("tcp_state_interval_seconds") is not None:
+        require_tcp_state_diagnostics(summary)
+        if not summary.get("bridge_networks_after") or not summary.get("new_bridge_names"):
+            raise ReplayError("TCP preflight missing dynamic bridge options evidence")
     if not summary.get("dynamic_matrix_changed") or summary.get("handover_count", 0) < 1:
         raise ReplayError("dynamic preflight did not observe a changing topology")
     manifest["preflight"] = {"status": "passed", "summary": str(preflight_dir / "summary.json"),
@@ -1924,6 +2170,40 @@ def cmd_preflight(args):
     print(json.dumps({"preflight_passed": True, "summary": str(preflight_dir / "summary.json")},
                      indent=2, sort_keys=True))
     return 0
+
+
+def run_sample_counts(manifest, successful_sample_ids, nonretryable_sample_ids):
+    """Display unique sample outcomes without changing completion or retry gates.
+
+    Attempted means a ledger entry or an existing valid success, not verified
+    collection quality. Only explicitly recorded measurement failures count as
+    interruptions; infrastructure/unknown outcomes remain separate.
+    """
+    planned = {sample["sample_id"] for session in active_sessions(manifest)
+               for sample in session["samples"]}
+    latest = {}
+    for row in read_attempts(manifest):
+        sample_id = row.get("sample_id")
+        if sample_id not in planned:
+            continue
+        match = re.fullmatch(r"attempt-(\d+)", str(row.get("attempt_id", "")))
+        number = int(match.group(1)) if match else 0
+        if sample_id not in latest or number >= latest[sample_id][0]:
+            latest[sample_id] = (number, row)
+    successful = set(successful_sample_ids) & planned
+    attempted = set(latest) | successful
+    interrupted = set()
+    for sample_id in (set(nonretryable_sample_ids) & set(latest)) - successful:
+        row = latest[sample_id][1]
+        if (row.get("status") == "failure" and row.get("retryable") is False
+                and row.get("network_loss_is_measurement") is True):
+            interrupted.add(sample_id)
+    return {"planned_samples": len(planned),
+            "attempted_samples": len(attempted),
+            "successful_samples": len(successful),
+            "interrupted_samples": len(interrupted),
+            "other_attempted_samples": len(attempted - successful - interrupted),
+            "unattempted_samples": len(planned - attempted)}
 
 
 def cmd_run(args):
@@ -2051,10 +2331,12 @@ def cmd_run(args):
         retryable_samples = []
         exhausted_samples = []
         nonretryable_samples = []
+        successful_sample_ids = set()
         for session in active_sessions(manifest):
             for sample in session["samples"]:
                 sample_id = sample["sample_id"]
                 if sample_is_valid(manifest, sample_id):
+                    successful_sample_ids.add(sample_id)
                     continue
                 if retry_allowed(manifest, sample_id):
                     if (next_attempt_number(manifest, sample_id)
@@ -2064,6 +2346,8 @@ def cmd_run(args):
                         exhausted_samples.append(sample_id)
                 else:
                     nonretryable_samples.append(sample_id)
+        sample_counts = run_sample_counts(
+            manifest, successful_sample_ids, nonretryable_samples)
         if retryable_samples or exhausted_samples or nonretryable_samples:
             if exhausted_samples:
                 manifest["status"] = "incomplete_retry_exhausted"
@@ -2077,17 +2361,20 @@ def cmd_run(args):
             manifest["last_run_utc"] = utc_now()
             atomic_write_json(manifest["manifest_path"], {k: v for k, v in manifest.items()
                                                            if k not in ("manifest_path", "run_dir")})
-            print(json.dumps({"run_completed": False,
-                              "retryable_samples": manifest["retryable_samples"],
-                              "retry_exhausted_samples": manifest["retry_exhausted_samples"],
-                              "nonretryable_samples": manifest["nonretryable_samples"]},
-                             indent=2))
+            result = {"run_completed": False,
+                      "retryable_samples": manifest["retryable_samples"],
+                      "retry_exhausted_samples": manifest["retry_exhausted_samples"],
+                      "nonretryable_samples": manifest["nonretryable_samples"]}
+            result.update(sample_counts)
+            print(json.dumps(result, indent=2))
             return 1
         manifest["status"] = "run_completed"
         manifest["last_run_utc"] = utc_now()
         atomic_write_json(manifest["manifest_path"], {k: v for k, v in manifest.items()
                                                        if k not in ("manifest_path", "run_dir")})
-    print(json.dumps({"run_completed": True, "sessions": len(summaries)}, indent=2))
+    result = {"run_completed": True, "sessions": len(summaries)}
+    result.update(sample_counts)
+    print(json.dumps(result, indent=2))
     return 0
 
 
@@ -2215,6 +2502,11 @@ def cmd_verify(args):
                 errors.append("label mismatch: " + sample_id)
             if row.get("status") != "success":
                 errors.append("sample not successful: " + sample_id)
+            if manifest.get("tcp_state_interval_seconds") is not None:
+                for role in ("client", "remote"):
+                    state = row.get(role + "_tcp_state_summary") or {}
+                    if not state.get("tcp_info_rows") or state.get("errors"):
+                        errors.append("TCP state sampling incomplete: " + sample_id + "/" + role)
             if row.get("large_timestamp_reversal_count") != 0:
                 errors.append("large reversal evidence: " + sample_id)
             if row.get("invalid_direction_count", 0) != 0:
@@ -2262,6 +2554,22 @@ def cmd_verify(args):
         if summary_path.exists():
             summary = json.loads(summary_path.read_text(encoding="utf-8"))
             session_summaries.append(summary)
+            if manifest.get("tcp_state_interval_seconds") is not None:
+                try:
+                    checked = dict(summary, tcp_state_logs={
+                        role: validate_tcp_state_log(
+                            summary["tcp_state_logs"][role]["path"], role)
+                        for role in ("client", "remote")})
+                    require_tcp_state_diagnostics(checked)
+                    for role in ("client", "remote"):
+                        if checked["tcp_state_logs"][role]["sha256"] != summary["tcp_state_logs"][role]["sha256"]:
+                            errors.append("TCP state log hash mismatch: " + session["session_id"] + "/" + role)
+                    if not summary.get("bridge_networks_after"):
+                        errors.append("missing final bridge options: " + session["session_id"])
+                    elif sha256_file(summary["bridge_networks_after"]) != summary.get("bridge_networks_after_sha256"):
+                        errors.append("final bridge options hash mismatch: " + session["session_id"])
+                except (OSError, KeyError, ValueError, ReplayError) as exc:
+                    errors.append("TCP state verification failed: " + str(exc))
             if summary.get("status") not in ("completed",):
                 errors.append("session not completed: " + session["session_id"])
             if summary.get("dynamic_matrix_changed") is not True:
@@ -2290,8 +2598,8 @@ def cmd_verify(args):
                 pcap_info = validate_pcap(pcap_path)
                 if summary.get("pcap", {}).get("sha256") != pcap_info["sha256"]:
                     errors.append("session PCAP hash mismatch: " + session["session_id"])
-                if pcap_info.get("ev4_packet_count", 0) < 1:
-                    errors.append("session PCAP has no identifiable EV4 packet: "
+                if replay_capture_count(pcap_info, manifest.get("transport", "udp")) < 1:
+                    errors.append("session PCAP has no replay transport payload: "
                                   + session["session_id"])
             except (OSError, ReplayError) as exc:
                 errors.append("invalid session PCAP {0}: {1}".format(session["session_id"], exc))
@@ -2406,6 +2714,9 @@ def parse_args(argv=None):
     plan.add_argument("--guard-seconds", type=float, default=GUARD_SECONDS)
     plan.add_argument("--max-samples", type=int)
     plan.add_argument("--pilot", action="store_true")
+    plan.add_argument("--transport", choices=("tcp", "udp"), default="tcp")
+    plan.add_argument("--link-loss-percent", type=loss_percent_arg, default=None,
+                      help="Override both satellite and ground link loss percentages; default keeps 1%%")
     for name in ("preflight", "run", "verify", "finalize"):
         command = sub.add_parser(name)
         command.add_argument("--manifest", type=Path, required=True)
