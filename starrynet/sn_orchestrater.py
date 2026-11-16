@@ -545,6 +545,32 @@ def sn_docker_cleanup_command(arguments, check=True):
     return output.splitlines()
 
 
+def sn_docker_service_owner(service):
+    """Return owner for an exact service, or None when it is absent.
+
+    Use the successful Swarm service list to distinguish absence from an
+    unlabelled service. A blank template line from ``service inspect`` must
+    still be treated as an existing service with no owner.
+    """
+    list_args = ['service', 'ls', '--format', '{{.Name}}']
+    names = sn_docker_cleanup_command(list_args)
+    if not any(name.strip() == service for name in names):
+        return None
+    template = ('{{ if .Spec.Labels }}{{ index .Spec.Labels '
+                '"starrynet.owner" }}{{ else }}UNOWNED{{ end }}')
+    try:
+        output = sn_docker_cleanup_command([
+            'service', 'inspect', '--format', template, service])
+    except RuntimeError:
+        # Tolerate a service concurrently removed after listing it, but do not
+        # turn an inspect/daemon failure into apparent absence.
+        names = sn_docker_cleanup_command(list_args)
+        if any(name.strip() == service for name in names):
+            raise
+        return None
+    return ''.join(output).strip()
+
+
 def sn_is_emulation_network(network_name):
     """Return whether a name has one of StarryNet's exact legacy link forms."""
     import re
@@ -556,12 +582,8 @@ def sn_is_emulation_network(network_name):
 def sn_stop_emulation():
     owner, service = resource_identity(os.environ)
     refusal = None
-    service_owner = sn_docker_cleanup_command([
-        'service', 'inspect', '--format',
-        '{{ if .Spec.Labels }}{{ index .Spec.Labels "starrynet.owner" }}{{ else }}UNOWNED{{ end }}',
-        service], check=False)
-    if service_owner:
-        actual_owner = service_owner[0].strip() if service_owner else ''
+    actual_owner = sn_docker_service_owner(service)
+    if actual_owner is not None:
         if actual_owner != owner:
             refusal = ('Refusing to remove service {!r}: owner is {!r}, expected {!r}'.format(
                 service, actual_owner or 'unmarked', owner))
@@ -591,9 +613,9 @@ def sn_stop_emulation():
         owner_filter(owner)])
     remaining_networks = sn_docker_cleanup_command([
         'network', 'ls', '--filter', owner_filter(owner), '--format', '{{.ID}}'])
-    remaining_services = sn_docker_cleanup_command([
-        'service', 'inspect', '--format',
-        '{{ index .Spec.Labels "starrynet.owner" }}', service], check=False)
+    remaining_services = [name for name in sn_docker_cleanup_command([
+        'service', 'ls', '--format', '{{.Name}}'])
+        if name.strip() == service]
     if refusal:
         raise RuntimeError(refusal)
     if remaining_containers or remaining_networks or remaining_services:

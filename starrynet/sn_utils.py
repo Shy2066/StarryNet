@@ -221,6 +221,33 @@ def sn_remote_checked_cmd(remote_ssh, cmd):
     return sn_remote_cmd(remote_ssh, cmd, check=True)
 
 
+def _sn_service_owner(remote_ssh, service):
+    """Return owner, or None when this exact Swarm service is absent.
+
+    A nonzero inspect result is not evidence of absence: it can indicate a
+    daemon/permission problem, and Docker may emit a blank template line for a
+    missing service. Listing names first separates that case from an existing
+    unlabelled service.
+    """
+    list_command = "docker service ls --format '{{.Name}}'"
+    names = sn_remote_cmd(remote_ssh, list_command)
+    if not any(line.strip() == service for line in names):
+        return None
+    template = ('{{ if .Spec.Labels }}{{ index .Spec.Labels '
+                '"starrynet.owner" }}{{ else }}UNOWNED{{ end }}')
+    inspect = ('docker service inspect --format ' + shlex.quote(template) +
+               ' ' + shlex.quote(service))
+    try:
+        output = sn_remote_cmd(remote_ssh, inspect)
+    except RuntimeError:
+        # Tolerate a concurrent cleanup only after a successful re-query.
+        names = sn_remote_cmd(remote_ssh, list_command)
+        if any(line.strip() == service for line in names):
+            raise
+        return None
+    return ''.join(output).strip()
+
+
 # A thread designed for initializing working directory.
 class sn_init_directory_thread(CheckedThread):
 
@@ -318,12 +345,8 @@ def sn_reset_docker_env(remote_ssh, docker_service_name, node_size):
     configure_executor(remote_ssh, owner, service)
     print("Reset docker environment for constellation emulation ...")
     print("Remove only resources owned by this run.")
-    owner_output = sn_remote_cmd(remote_ssh,
-        "docker service inspect --format " +
-        shlex.quote('{{ if .Spec.Labels }}{{ index .Spec.Labels "starrynet.owner" }}{{ else }}UNOWNED{{ end }}') + " " +
-        shlex.quote(service) + ' 2>/dev/null', check=False)
-    if owner_output:
-        actual_owner = owner_output[0].strip() if owner_output else ''
+    actual_owner = _sn_service_owner(remote_ssh, service)
+    if actual_owner is not None:
         if actual_owner != owner:
             raise RuntimeError(
                 'Refusing to replace service {!r}: owner is {!r}, expected {!r}'.format(

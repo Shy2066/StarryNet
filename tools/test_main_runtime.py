@@ -31,6 +31,9 @@ class RuntimeTests(unittest.TestCase):
         def command(arguments, check=True):
             arguments = list(arguments)
             calls.append(arguments)
+            if arguments[:2] == ['service', 'ls']:
+                return [service + '\n'] if sum(
+                    1 for call in calls if call[:2] == ['service', 'ls']) == 1 else []
             if arguments[:2] == ['service', 'inspect']:
                 return [owner] if sum(1 for call in calls
                                       if call[:2] == ['service', 'inspect']) == 1 else []
@@ -61,6 +64,8 @@ class RuntimeTests(unittest.TestCase):
         def command(arguments, check=True):
             arguments = list(arguments)
             calls.append(arguments)
+            if arguments[:2] == ['service', 'ls']:
+                return ['constellation-test\n']
             if arguments[:2] == ['service', 'inspect']:
                 return [''] if sum(1 for call in calls
                                    if call[:2] == ['service', 'inspect']) == 1 else []
@@ -80,6 +85,8 @@ class RuntimeTests(unittest.TestCase):
         def command(arguments, check=True):
             arguments = list(arguments)
             calls.append(arguments)
+            if arguments[:2] == ['service', 'ls']:
+                return ['same-service\n']
             if arguments[:2] == ['service', 'inspect']:
                 return ['batch-previous'] if sum(
                     1 for call in calls if call[:2] == ['service', 'inspect']) == 1 else []
@@ -107,7 +114,29 @@ class RuntimeTests(unittest.TestCase):
         with patch.object(o, 'sn_docker_cleanup_command', return_value=[]) as command:
             o.sn_stop_emulation()
             o.sn_stop_emulation()
+        self.assertFalse(any(call[0][0][:2] == ['service', 'inspect']
+                             for call in command.call_args_list))
         self.assertTrue(all(c[0][0][0] not in ('rm',) for c in command.call_args_list))
+
+    def test_cleanup_does_not_treat_service_inspect_error_as_absence(self):
+        calls = []
+        def command(arguments, check=True):
+            arguments = list(arguments)
+            calls.append(arguments)
+            if arguments[:2] == ['service', 'ls']:
+                return ['same-service\n']
+            if arguments[:2] == ['service', 'inspect']:
+                raise RuntimeError('service inspect failed')
+            return []
+
+        with patch.dict(os.environ, {'STARRYNET_OWNER': 'batch-current',
+                                    'STARRYNET_SERVICE': 'same-service'}), \
+                patch.object(o, 'sn_docker_cleanup_command', side_effect=command), \
+                self.assertRaisesRegex(RuntimeError, 'service inspect failed'):
+            o.sn_stop_emulation()
+        self.assertNotIn(['service', 'rm', 'same-service'], calls)
+        self.assertFalse(any(args[:2] == ['rm', '-f'] or
+                             args[:2] == ['network', 'rm'] for args in calls))
 
     def test_cleanup_rejects_system_network_deletion(self):
         with self.assertRaises(ValueError), patch.object(o, 'sn_docker_cleanup_command') as command:
@@ -196,16 +225,59 @@ class RuntimeTests(unittest.TestCase):
     def test_reset_refuses_service_with_unmarked_or_different_owner(self):
         for actual_owner, expected_error in (('', 'unmarked'),
                                              ('batch-previous', 'batch-previous')):
+            def remote_command(_remote, command, check=True):
+                if command == "docker service ls --format '{{.Name}}'":
+                    return ['constellation-test\n']
+                if command.startswith('docker service inspect '):
+                    return [actual_owner + '\n']
+                return []
             with self.subTest(actual_owner=actual_owner), \
                     patch.dict(os.environ, {'STARRYNET_OWNER': 'batch-current',
                                             'STARRYNET_SERVICE': 'constellation-test'}), \
                     patch.object(u, 'sn_remote_cmd',
-                                 side_effect=[[actual_owner]]) as command, \
+                                 side_effect=remote_command) as command, \
                     patch.object(u, 'sn_delete_remote_network_bridge'):
                 with self.assertRaisesRegex(RuntimeError, expected_error):
                     u.sn_reset_docker_env(None, 'constellation-test', 27)
-            self.assertEqual(command.call_count, 1)
-            self.assertIn('docker service inspect', command.call_args[0][1])
+            self.assertEqual(command.call_count, 2)
+            self.assertIn('docker service inspect', command.call_args_list[1][0][1])
+
+    def test_reset_treats_absent_service_as_absent_not_unmarked(self):
+        calls = []
+        def remote_command(_remote, command, check=True):
+            calls.append(command)
+            if command == "docker service ls --format '{{.Name}}'":
+                # Docker can return rc=1 and stdout=b"\\n" for inspect of a
+                # nonexistent service. The successful list is the absence test.
+                return []
+            return []
+
+        with patch.object(u, 'sn_remote_cmd', side_effect=remote_command), \
+                patch.object(u, 'sn_delete_remote_network_bridge'), \
+                patch.object(u, 'sn_get_container_info', return_value=['id'] * 27):
+            u.sn_reset_docker_env(None, 'constellation-test', 27)
+        self.assertFalse(any(command.startswith('docker service inspect ')
+                             for command in calls))
+        self.assertTrue(any(command.startswith('docker service create ')
+                            for command in calls))
+
+    def test_reset_does_not_treat_inspect_failure_as_absent_service(self):
+        calls = []
+        def remote_command(_remote, command, check=True):
+            calls.append(command)
+            if command == "docker service ls --format '{{.Name}}'":
+                return ['constellation-test\n']
+            if command.startswith('docker service inspect '):
+                raise RuntimeError('Docker daemon connection failed')
+            return []
+
+        with patch.object(u, 'sn_remote_cmd', side_effect=remote_command), \
+                patch.object(u, 'sn_delete_remote_network_bridge'), \
+                self.assertRaisesRegex(RuntimeError, 'Docker daemon connection failed'):
+            u.sn_reset_docker_env(None, 'constellation-test', 27)
+        self.assertFalse(any(command.startswith('docker service rm ')
+                             or command.startswith('docker service create ')
+                             for command in calls))
 
     def test_directory_initialization_repeats_with_partial_directory(self):
         with tempfile.TemporaryDirectory() as base:

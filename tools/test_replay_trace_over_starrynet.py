@@ -260,6 +260,9 @@ class ReplayTraceCoreTests(unittest.TestCase):
             arguments = list(arguments)
             docker_arguments = arguments[1:]
             calls.append(docker_arguments)
+            if docker_arguments[:2] == ["service", "ls"]:
+                return "constellation-test\n" if sum(
+                    1 for item in calls if item[:2] == ["service", "ls"]) == 1 else ""
             if docker_arguments[:2] == ["service", "inspect"]:
                 return "constellation-test\n" if sum(
                     1 for item in calls if item[:2] == ["service", "inspect"]) == 1 else ""
@@ -284,7 +287,7 @@ class ReplayTraceCoreTests(unittest.TestCase):
         self.assertIn(["service", "rm", "constellation-test"], calls)
         self.assertIn(["rm", "-f", "container-a"], calls)
         self.assertIn(["network", "rm", "network-a"], calls)
-        self.assertEqual(len(calls), 9)
+        self.assertEqual(len(calls), 10)
 
     def test_dynamic_gsl_replaces_existing_root_qdisc(self):
         from starrynet import sn_utils
