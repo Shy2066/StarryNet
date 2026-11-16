@@ -92,6 +92,61 @@ class Research2PlanningIntegrationTests(unittest.TestCase):
         with self.assertRaises(replay.ReplayError):
             replay.load_batch_manifest(manifest)
 
+    def fixed_preflight_fixture(self):
+        manifest = self.plan(self.diagnostic_arguments(120))
+        matrix = self.root / "matrix.txt"
+        matrix.write_text("frozen snapshot fixture\n")
+        self.batch["frozen_topology"] = {
+            "path": str(matrix), "sha256": replay.sha256_file(matrix),
+            "time_index": 1}
+        self.batch_file.write_text(json.dumps(self.batch))
+        bridges = self.root / "bridges.json"
+        bridges.write_text("[]")
+        summary = {
+            "status": "completed", "cleanup_verified": True,
+            # This is the field actually produced by run_session.
+            "fixed_snapshot_sha256": replay.sha256_file(matrix),
+            "dynamic_matrix_changed": False, "handover_count": 0,
+            "bridge_networks": str(bridges),
+            "bridge_networks_after": str(bridges),
+            "bridge_networks_sha256": replay.sha256_file(bridges),
+            "bridge_networks_after_sha256": replay.sha256_file(bridges),
+            "route_before": {"remote_satellite_route": True},
+            "gs_qdisc_before_after_apply": {"profiles": [{}, {}]},
+            "client_agent_log": {"path": str(self.root / "client.jsonl")},
+            "remote_agent_log": {"path": str(self.root / "remote.jsonl")},
+            "sample_results": [
+                {"sample_id": "preflight-" + item,
+                 "source_sample_id": item, "status": "success",
+                 "attempt_id": "attempt-1"} for item in self.ids]}
+        return manifest, summary
+
+    def invoke_preflight_fixture(self, manifest, summary):
+        def endpoint(path, sample_id, token):
+            return {"sample_id": sample_id, "sample_token": token}
+        with mock.patch.object(replay, "check_docker_capabilities"), \
+                mock.patch.object(replay, "run_session", return_value=summary), \
+                mock.patch.object(replay, "require_tcp_state_diagnostics"), \
+                mock.patch.object(replay, "read_agent_sample", side_effect=endpoint), \
+                contextlib.redirect_stdout(io.StringIO()):
+            return replay.cmd_preflight(SimpleNamespace(
+                manifest=manifest["manifest_path"]))
+
+    def test_preflight_accepts_snapshot_hash_written_by_session(self):
+        manifest, summary = self.fixed_preflight_fixture()
+        self.assertNotIn("frozen_topology", summary)
+        self.assertEqual(self.invoke_preflight_fixture(manifest, summary), 0)
+        diagnostic = json.loads((Path(manifest["run_dir"]) /
+                                 "deadline_diagnostic.json").read_text())
+        self.assertTrue(diagnostic["execution_complete"])
+        self.assertTrue(diagnostic["cleanup_verified"])
+
+    def test_preflight_rejects_changed_session_snapshot_hash(self):
+        manifest, summary = self.fixed_preflight_fixture()
+        summary["fixed_snapshot_sha256"] = "0" * 64
+        with self.assertRaisesRegex(replay.ReplayError, "shared frozen topology"):
+            self.invoke_preflight_fixture(manifest, summary)
+
 
 class Research2ForwardingIntegrationTests(unittest.TestCase):
     def fixture(self, include_loopback=True):

@@ -3384,10 +3384,19 @@ def cmd_preflight(args):
         elif not summary.get("new_bridge_names"):
             raise ReplayError("dynamic bridge preflight missing new bridge scope evidence")
     if manifest.get("topology", {}).get("mode") == "fixed":
-        snapshot = summary.get("frozen_topology") or {}
         batch_path, batch = load_batch_manifest(manifest)
         shared = batch.get("frozen_topology") or {}
-        if (not snapshot or snapshot.get("sha256") != shared.get("sha256") or
+        shared_path = Path(shared.get("path", ""))
+        manifest_snapshot = manifest.get("topology", {}).get("frozen_snapshot") or {}
+        snapshot_file_valid = (
+            bool(shared.get("sha256")) and shared_path.is_file() and
+            sha256_file(shared_path) == shared.get("sha256"))
+        manifest_snapshot_matches = (
+            not manifest_snapshot or all(
+                manifest_snapshot.get(key) == shared.get(key)
+                for key in ("path", "sha256", "time_index")))
+        if (not snapshot_file_valid or not manifest_snapshot_matches or
+                summary.get("fixed_snapshot_sha256") != shared.get("sha256") or
                 summary.get("dynamic_matrix_changed") is not False or
                 summary.get("handover_count") != 0):
             raise ReplayError("fixed preflight did not prove the shared frozen topology")
