@@ -149,6 +149,19 @@ class Research2PlanningIntegrationTests(unittest.TestCase):
 
 
 class Research2ForwardingIntegrationTests(unittest.TestCase):
+    def test_recorded_route_schema_matches_registered_baseline(self):
+        # Producer and frozen-baseline formats from the real 0745 pilot.
+        observed = {
+            "forward": {"nodes": [26, 7, 12, 13, 27], "passed": True},
+            "reverse": {"nodes": [27, 13, 8, 7, 26], "passed": True}}
+        baseline = {"forward_nodes": [26, 7, 12, 13, 27],
+                    "reverse_nodes": [27, 13, 8, 7, 26]}
+        self.assertEqual(replay.fixed_route_nodes(observed), baseline)
+        observed["reverse"]["nodes"] = [27, 13, 12, 7, 26]
+        self.assertNotEqual(replay.fixed_route_nodes(observed), baseline)
+        del observed["reverse"]
+        self.assertNotEqual(replay.fixed_route_nodes(observed), baseline)
+
     def fixture(self, include_loopback=True):
         sn = SimpleNamespace(container_id_list=["node{0}".format(n)
                                                 for n in range(1, 28)])

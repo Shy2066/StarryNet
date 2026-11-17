@@ -1582,6 +1582,25 @@ def rebase_runtime_schedule(sample_specs, guard_seconds):
     return result
 
 
+def mark_session_rollover(summary, sample_id, reason):
+    """Request a clean topology rollover before the current sample starts."""
+    summary["status"] = "rollover_required"
+    summary["rollover_reason"] = reason
+    summary["rollover_before_sample"] = sample_id
+
+
+def request_rollover_if_window_exceeded(summary, sample_id, start_second,
+                                        duration_seconds, session_seconds,
+                                        session_tail_seconds):
+    """Preserve the session window and move an unsent sample to a new session."""
+    if float(start_second) + float(duration_seconds) <= (
+            float(session_seconds) - float(session_tail_seconds)):
+        return False
+    reason = "runtime scheduling exceeded usable session window for " + sample_id
+    mark_session_rollover(summary, sample_id, reason)
+    return True
+
+
 def final_route_snapshot(client_cid, peer_ip, timeout=30.0):
     """Record end-of-session route state without invalidating collected data."""
     try:
@@ -2969,9 +2988,7 @@ def run_session(manifest, session, sample_specs, session_dir, session_seconds,
                 # Preserve all completed samples, clean this topology, and let
                 # cmd_run immediately continue the remaining suffix in a new
                 # topology instance.  No sample attempt has been allocated.
-                summary["status"] = "rollover_required"
-                summary["rollover_reason"] = str(exc)
-                summary["rollover_before_sample"] = sample["sample_id"]
+                mark_session_rollover(summary, sample["sample_id"], str(exc))
                 rollover_requested = True
                 break
             route_wait_seconds = (monotonic_ns() - route_wait_started) / 1e9
@@ -3033,11 +3050,16 @@ def run_session(manifest, session, sample_specs, session_dir, session_seconds,
                     runtime_meta["handover_control"] = anchor_meta
                 runtime_sample["start_second"] = round(
                     (start_ns - session_anchor_ns) / 1e9, 6)
-                if runtime_sample["start_second"] + runtime_sample["duration_seconds"] > (
-                        session_seconds - session_tail_seconds):
-                    raise ReplayError(
-                        "runtime scheduling exceeded usable session window for "
-                        + sample["sample_id"])
+                if request_rollover_if_window_exceeded(
+                        summary, sample["sample_id"], runtime_sample["start_second"],
+                        runtime_sample["duration_seconds"], session_seconds,
+                        session_tail_seconds):
+                    # Both endpoints are prepared but have not received the
+                    # start command, so no sample attempt has begun. Cleanly
+                    # reuse the existing rollover path for the remaining
+                    # suffix instead of recording a transport failure.
+                    rollover_requested = True
+                    break
                 runtime_meta.update({
                     "handover_count": (sum(
                         1 for value in topology["handover_seconds"]
@@ -3810,6 +3832,12 @@ def verification_traffic_summary(evidence_rows, output_direction_counts):
     }
 
 
+def fixed_route_nodes(chains):
+    """Normalize observed route records to the batch baseline's wire schema."""
+    return {direction + "_nodes": (chains.get(direction) or {}).get("nodes")
+            for direction in ("forward", "reverse")}
+
+
 def cmd_verify(args):
     manifest = load_manifest(args.manifest)
     if manifest.get("diagnostic_mode") == "deadline":
@@ -4087,17 +4115,14 @@ def cmd_verify(args):
                     expected_routes = (batch.get("fixed_route_baseline") or {}).get("routes")
                     before = summary.get("actual_route_chains_before") or {}
                     after = summary.get("actual_route_chains_after") or {}
-                    def route_nodes(value):
-                        return {key: (value.get(key) or {}).get("nodes")
-                                for key in ("forward", "reverse")}
                     if (summary.get("dynamic_matrix_changed") is not False
                             or int(summary.get("handover_count", -1)) != 0
                             or summary.get("fixed_snapshot_sha256") != frozen_hash):
                         errors.append("fixed topology identity/zero-handover check failed: "
                                       + session["session_id"])
                     if (not expected_routes
-                            or route_nodes(before) != expected_routes
-                            or route_nodes(after) != expected_routes):
+                            or fixed_route_nodes(before) != expected_routes
+                            or fixed_route_nodes(after) != expected_routes):
                         errors.append("fixed session route chain differs from batch baseline: "
                                       + session["session_id"])
                     qdisc = summary.get("gs_qdisc_before_after_apply") or {}
@@ -4203,6 +4228,10 @@ def cmd_verify(args):
     retry_successes = sum(row.get("status") == "success" for row in retry_attempts)
     result = {"schema_version": SCHEMA_VERSION, "tool": "replay_trace_over_starrynet",
               "manifest": manifest["manifest_path"], "planned_samples": len(expected),
+              "acquisition_generator_sha256": manifest.get(
+                  "acquisition_generator_sha256", manifest.get("generator_sha256")),
+              "verifier_sha256": sha256_file(Path(__file__).resolve()),
+              "verification_revision": manifest.get("verification_revision"),
               "successful_samples": successes, "session_count": len(session_summaries),
               "errors": errors, "passed": not errors and successes == len(expected),
               "engineering_pipeline_verified": not errors and successes == len(expected),
@@ -4265,6 +4294,10 @@ def cmd_finalize(args):
         "run_id": manifest["run_id"],
         "source_digest_sha256": manifest["source_digest_sha256"],
         "sample_count": len(dataset_rows),
+        "acquisition_generator_sha256": manifest.get(
+            "acquisition_generator_sha256", manifest.get("generator_sha256")),
+        "verifier_sha256": sha256_file(Path(__file__).resolve()),
+        "verification_revision": manifest.get("verification_revision"),
         "samples": sorted(dataset_rows, key=lambda row: row["sample_id"]),
         "engineering_pipeline_verified": True,
         "scientific_fidelity_verified": False,

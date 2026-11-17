@@ -203,6 +203,22 @@ class TCPReplayTests(unittest.TestCase):
                                            {}, [], Path(directory), duration)
                 create.assert_called_once_with(Path(directory), duration, frozen)
 
+    def test_runtime_window_overrun_requests_rollover_before_sample_start(self):
+        summary = {}
+        # Ending exactly at the usable-window boundary remains admissible.
+        self.assertFalse(replay.request_rollover_if_window_exceeded(
+            summary, "sample-a", 870, 15, 900, 15))
+        self.assertEqual(summary, {})
+
+        # A late prepared sample is moved to the existing recovery-session
+        # path before either endpoint receives its start command.
+        self.assertTrue(replay.request_rollover_if_window_exceeded(
+            summary, "sample-b", 870, 15.001, 900, 15))
+        self.assertEqual(summary["status"], "rollover_required")
+        self.assertEqual(summary["rollover_before_sample"], "sample-b")
+        self.assertIn("runtime scheduling exceeded usable session window",
+                      summary["rollover_reason"])
+
     def test_link_loss_cli_rejects_nonfinite_and_out_of_range_values(self):
         for value in ("-1", "101", "nan", "inf", "-inf"):
             with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
